@@ -1,12 +1,18 @@
 #include "Window.h"
 
+#include <map>
+#include <iostream>
+
+
 namespace vgl::internal {
 
 bool _defaultShow = true;
 bool _defaultResizable = true;
 
+
 #ifdef _WIN32
-    HINSTANCE instanceHandle;
+    HINSTANCE _instanceHandle;
+    std::map<HWND, vgl::Window*> _windowMap;
 #elif __unix__
 #endif
 
@@ -16,7 +22,7 @@ bool _defaultResizable = true;
 void vgl::initialize()
 {
     #ifdef _WIN32
-    internal::instanceHandle = GetModuleHandle(nullptr);
+    internal::_instanceHandle = GetModuleHandle(nullptr);
     #elif __unix__
     #endif
 }
@@ -34,10 +40,12 @@ void vgl::setOption(Option option, bool value)
 }
 
 #ifdef _WIN32
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+namespace vgl::internal {
+
+LRESULT CALLBACK windowMsgCallback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
     case WM_CLOSE:
-        DestroyWindow(hWnd);
+        internal::_windowMap[hWnd]->shouldClose();
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
@@ -45,6 +53,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
 }
+
+void printLastError() {
+    LPSTR msgBuffer;
+    DWORD errorIndex = GetLastError();
+    if (errorIndex == 0) {
+        return;
+    }
+
+    FormatMessageA(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr,
+        errorIndex,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPSTR)&msgBuffer,
+        0,
+        nullptr
+    );
+
+    // TODO: configurable output stream
+    std::cout << msgBuffer << std::endl;
+    LocalFree(msgBuffer);
+}
+
+#define PRINT_ERROR_HEADER std::cout << "[ERROR] " << __FILE__ << " (" << __LINE__ << "):  " << __func__ << std::endl;
+#define ASSERT_SUCCESS(cmd) if (!cmd) { PRINT_ERROR_HEADER; internal::printLastError(); std::abort(); }
+#define ASSERT_NOT_NULL(val) if (val == NULL) { PRINT_ERROR_HEADER; internal::printLastError(); std::abort(); }
+
+} // namespace vgl::internal
 #endif
 
 
@@ -54,19 +90,25 @@ vgl::Window::Window(int x, int y, int width, int height, std::string title)
     #ifdef _WIN32
     WNDCLASS wc = { };
     wc.lpszClassName = mWindowClassName;
-    wc.hInstance = internal::instanceHandle;
-    wc.hIcon = (HICON)LoadImage(internal::instanceHandle, L"icon/vgl.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
-    // wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+    wc.hInstance = internal::_instanceHandle;
+    wc.hIcon = static_cast<HICON>(LoadImage(internal::_instanceHandle, L"icon/vgl.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE));
+    if (!wc.hIcon) {
+        internal::printLastError();
+        wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+        ASSERT_NOT_NULL(wc.hIcon);
+    }
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wc.lpfnWndProc = WndProc;
-    RegisterClass(&wc);
+    ASSERT_NOT_NULL(wc.hCursor);
+    wc.lpfnWndProc = internal::windowMsgCallback;
+    ASSERT_NOT_NULL( RegisterClass(&wc) );
 
     DWORD style = WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | (internal::_defaultResizable ? WS_SIZEBOX : 0);
     RECT rect = { x, y, x + width, y + height };
-    AdjustWindowRect(&rect, style, FALSE);
+    ASSERT_SUCCESS( AdjustWindowRect(&rect, style, FALSE) );
 
-    mTitle.resize(title.size());
-    MultiByteToWideChar(CP_UTF8, 0, title.c_str(), -1, &mTitle[0], static_cast<int>(mTitle.size()));
+    // fix: Der an einen Systemaufruf ³bergebene Datenbereich ist zu klein.
+    mTitle.resize(title.size(), L' ');
+    ASSERT_NOT_NULL( MultiByteToWideChar(CP_UTF8, 0, title.c_str(), static_cast<int>(title.size()), &mTitle[0], static_cast<int>(mTitle.size())) );
 
     mWindowHandle = CreateWindowEx(
         0,
@@ -77,9 +119,11 @@ vgl::Window::Window(int x, int y, int width, int height, std::string title)
         rect.right - rect.left, rect.bottom - rect.top,
         nullptr,
         nullptr,
-        internal::instanceHandle,
+        internal::_instanceHandle,
         nullptr
     );
+    ASSERT_NOT_NULL( mWindowHandle );
+    internal::_windowMap[mWindowHandle] = this;
     ShowWindow(mWindowHandle, internal::_defaultShow ? SW_SHOW : SW_HIDE);
     #elif __unix__
     // TODO: implement
@@ -88,9 +132,11 @@ vgl::Window::Window(int x, int y, int width, int height, std::string title)
 
 vgl::Window::~Window()
 {
+    mShouldClose = true;
     #ifdef _WIN32
-    UnregisterClass(mWindowClassName, internal::instanceHandle);
-    DestroyWindow(mWindowHandle);
+    internal::_windowMap.erase(mWindowHandle);
+    ASSERT_SUCCESS( DestroyWindow(mWindowHandle) );
+    ASSERT_SUCCESS( UnregisterClass(mWindowClassName, internal::_instanceHandle) );
     #elif __unix__
     // TODO: implement
     #endif
@@ -174,8 +220,8 @@ void vgl::Window::setViewport(int x, int y, int width, int height)
     mHeight = height;
     #ifdef _WIN32
     RECT rect = { x, y, x + width, y + height };
-    AdjustWindowRect(&rect, WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, FALSE);
-    SetWindowPos(mWindowHandle, nullptr, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER);
+    ASSERT_SUCCESS( AdjustWindowRect(&rect, WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, FALSE) );
+    ASSERT_SUCCESS( SetWindowPos(mWindowHandle, nullptr, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER) );
     #elif __unix__
     // TODO: implement
     #endif
@@ -185,8 +231,8 @@ void vgl::Window::setTitle(std::string title)
 {
     #ifdef _WIN32
     mTitle.resize(title.size());
-    MultiByteToWideChar(CP_UTF8, 0, title.c_str(), -1, &mTitle[0], static_cast<int>(mTitle.size()));
-    SetWindowText(mWindowHandle, mTitle.c_str());
+    ASSERT_NOT_NULL( MultiByteToWideChar(CP_UTF8, 0, title.c_str(), static_cast<int>(title.size()), &mTitle[0], static_cast<int>(mTitle.size())) );
+    ASSERT_SUCCESS( SetWindowText(mWindowHandle, mTitle.c_str()) );
     #elif __unix__
     // TODO: implement
     #endif
@@ -195,5 +241,5 @@ void vgl::Window::setTitle(std::string title)
 void vgl::Window::setResizable(bool resizable)
 {
     mResizable = resizable;
-    SetWindowLong(mWindowHandle, GWL_STYLE, GetWindowLong(mWindowHandle, GWL_STYLE) & ~WS_SIZEBOX | (mResizable ? WS_SIZEBOX : 0) );
+    ASSERT_NOT_NULL( SetWindowLong(mWindowHandle, GWL_STYLE, GetWindowLong(mWindowHandle, GWL_STYLE) & ~WS_SIZEBOX | (mResizable ? WS_SIZEBOX : 0)) );
 }

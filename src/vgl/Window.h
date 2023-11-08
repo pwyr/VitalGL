@@ -5,6 +5,7 @@
 #ifndef UNICODE
 #define UNICODE
 #endif
+// TODO: avoid including Windows.h here
 #include <Windows.h>
 #endif
 
