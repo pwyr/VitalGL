@@ -11,8 +11,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${BIN_DIR})
 
 set(VITALGL_SOURCES
     main.cpp
-    src/vgl/Window.h
-    src/vgl/Window.cpp
+    src/vgl/window.h
+    src/vgl/window.cpp
+    src/vgl/gl.h
+    src/vgl/gl.cpp
 )
 
 add_executable(vital-gl ${VITALGL_SOURCES})

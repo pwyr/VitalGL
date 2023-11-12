@@ -6,13 +6,14 @@
 #define UNICODE
 #endif
 // TODO: avoid including Windows.h here
-#include <Windows.h>
+#include <windows.h>
 #endif
 
 
 namespace vgl {
 
 void initialize();
+void* getProcAddress(const char* name);
 
 enum class Option {
     DefaultShowWindow,
@@ -37,6 +38,8 @@ public:
 
     void pollEvents();
 
+    int x() const;
+    int y() const;
     int width() const;
     int height() const;
 
@@ -52,6 +55,14 @@ public:
 
     void setResizable(bool resizable);
 
+    void makeGLContextCurrent() const;
+    void releaseGLContext() const;
+
+    void swapBuffers() const;
+
+private:
+    void setupRenderingContext();
+
 private:
     int mX;
     int mY;
@@ -64,6 +75,7 @@ private:
 #ifdef _WIN32
     std::wstring mTitle;
     HWND mWindowHandle;
+    HGLRC mRenderingContext;
     const wchar_t* mWindowClassName = L"VitalGLWindow";
 #endif
 };
