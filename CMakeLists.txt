@@ -3,16 +3,32 @@ cmake_minimum_required(VERSION 3.27.4)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# TODO: remove
+if (MSVC)
+    add_compile_options(/W3)
+else()
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
 set(BIN_DIR ${CMAKE_SOURCE_DIR}/bin/default)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${BIN_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${BIN_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${BIN_DIR})
 
+set(OPENGL_DEBUG_MODE OFF CACHE BOOL "Enable OpenGL debug mode")
+if(${OPENGL_DEBUG_MODE})
+    add_compile_definitions(VGL_OPENGL_DEBUG_MODE=1)
+endif()
+#TODO: remove
+add_compile_definitions(VGL_OPENGL_DEBUG_MODE=1)
+
 set(VITALGL_SOURCES
     main.cpp
     src/vgl/window.h
     src/vgl/window.cpp
+    src/vgl/renderer.h
+    src/vgl/renderer.cpp
     src/vgl/gl.h
     src/vgl/gl.cpp
 )

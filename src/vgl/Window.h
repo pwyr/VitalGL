@@ -23,6 +23,13 @@ enum class Option {
 void setOption(Option option, bool value);
 
 
+#ifdef _WIN32
+namespace internal {
+LRESULT CALLBACK windowMsgCallback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+}
+#endif
+
+
 class Window
 {
 public:
@@ -34,6 +41,7 @@ public:
     void hide() const;
     void show() const;
 
+    void setShouldClose(bool shouldClose);
     bool shouldClose() const;
 
     void pollEvents();
@@ -61,7 +69,13 @@ public:
     void swapBuffers() const;
 
 private:
+#ifdef _WIN32
+    friend LRESULT vgl::internal::windowMsgCallback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+#endif
+
+private:
     void setupRenderingContext();
+    void setupOpenGLDebugCallback();
 
 private:
     int mX;

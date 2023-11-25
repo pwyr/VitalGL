@@ -27,6 +27,13 @@ using GLfloat = float;
 // ------------------------------------------------------------------------------
 // OpenGL constants
 // ------------------------------------------------------------------------------
+#define GL_UNSIGNED_INT 0x1405
+#define GL_FLOAT 0x1406
+
+#define GL_FALSE 0
+#define GL_TRUE 1
+#define GL_DONT_CARE 0x1100
+
 #define GL_COLOR_BUFFER_BIT 0x00004000
 // #define GL_DEPTH_BUFFER_BIT 0x00000100
 // #define GL_STENCIL_BUFFER_BIT 0x00000400
@@ -43,24 +50,36 @@ using GLfloat = float;
 // #define GL_INVALID_OPERATION 0x0502
 
 #define GL_COMPILE_STATUS 0x8B81
+#define GL_INFO_LOG_LENGTH 0x8B84
 
 #define GL_LINK_STATUS 0x8B82
 
 #define GL_ARRAY_BUFFER 0x8892
-
-#define GL_FLOAT 0x1406
-
-#define GL_FALSE 0
-#define GL_TRUE 1
+#define GL_ELEMENT_ARRAY_BUFFER 0x8893
 
 #define GL_STATIC_DRAW 0x88E4
 
 #define GL_TRIANGLES 0x0004
 
+#define GL_DEBUG_OUTPUT 0x92E0
+#define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
+
+#define GL_DEBUG_TYPE_ERROR 0x824C
+#define GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR 0x824D
+#define GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR 0x824E
+#define GL_DEBUG_TYPE_PORTABILITY 0x824F
+#define GL_DEBUG_TYPE_PERFORMANCE 0x8250
+#define GL_DEBUG_TYPE_OTHER 0x8251
+#define GL_DEBUG_SEVERITY_NOTIFICATION 0x826B
+#define GL_DEBUG_SEVERITY_LOW 0x9148
+#define GL_DEBUG_SEVERITY_MEDIUM 0x9147
+#define GL_DEBUG_SEVERITY_HIGH 0x9146
 
 // ------------------------------------------------------------------------------
 // OpenGL functions
 // ------------------------------------------------------------------------------
+extern void (*glEnable)(GLenum);
+
 extern void (*glViewport)(GLint, GLint, GLsizei, GLsizei);
 extern void (*glClearColor)(GLfloat, GLfloat, GLfloat, GLfloat);
 extern void (*glClear)(GLbitfield);
@@ -92,8 +111,10 @@ extern void (*glDeleteBuffers)(GLsizei, const GLuint*);
 extern void (*glEnableVertexAttribArray)(GLuint);
 extern void (*glVertexAttribPointer)(GLuint, GLint, GLenum, GLboolean, GLsizei, const void*);
 
-extern void (*glDrawArrays)(GLenum, GLint, GLsizei);
+extern void (*glDrawElements)(GLenum, GLsizei, GLenum, const void*);
 
+extern void (*glDebugMessageCallback)(void (*)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar*, const void*), const void*);
+extern void (*glDebugMessageControl)(GLenum, GLenum, GLenum, GLsizei, const GLuint*, GLboolean);
 
 // ------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------

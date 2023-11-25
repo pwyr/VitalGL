@@ -2,6 +2,8 @@
 #include "gl.h"
 
 
+void (*glEnable)(GLenum) = nullptr;
+
 void (*glViewport)(GLint, GLint, GLsizei, GLsizei) = nullptr;
 void (*glClearColor)(GLfloat, GLfloat, GLfloat, GLfloat) = nullptr;
 void (*glClear)(GLbitfield) = nullptr;
@@ -33,11 +35,16 @@ void (*glDeleteBuffers)(GLsizei, const GLuint*) = nullptr;
 void (*glEnableVertexAttribArray)(GLuint) = nullptr;
 void (*glVertexAttribPointer)(GLuint, GLint, GLenum, GLboolean, GLsizei, const void*) = nullptr;
 
-void (*glDrawArrays)(GLenum, GLint, GLsizei) = nullptr;
+void (*glDrawElements)(GLenum, GLsizei, GLenum, const void*) = nullptr;
+
+void (*glDebugMessageCallback)(void (*)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar*, const void*), const void*) = nullptr;
+void (*glDebugMessageControl)(GLenum, GLenum, GLenum, GLsizei, const GLuint*, GLboolean) = nullptr;
 
 
 void vgl::loadGLFunctions(void* (*getProcAddress)(const char*))
 {
+    glEnable = reinterpret_cast<decltype(glEnable)>(getProcAddress("glEnable"));
+
     glViewport = reinterpret_cast<decltype(glViewport)>(getProcAddress("glViewport"));
     glClearColor = reinterpret_cast<decltype(glClearColor)>(getProcAddress("glClearColor"));
     glClear = reinterpret_cast<decltype(glClear)>(getProcAddress("glClear"));
@@ -69,5 +76,8 @@ void vgl::loadGLFunctions(void* (*getProcAddress)(const char*))
     glEnableVertexAttribArray = reinterpret_cast<decltype(glEnableVertexAttribArray)>(getProcAddress("glEnableVertexAttribArray"));
     glVertexAttribPointer = reinterpret_cast<decltype(glVertexAttribPointer)>(getProcAddress("glVertexAttribPointer"));
 
-    glDrawArrays = reinterpret_cast<decltype(glDrawArrays)>(getProcAddress("glDrawArrays"));
+    glDrawElements = reinterpret_cast<decltype(glDrawElements)>(getProcAddress("glDrawElements"));
+
+    glDebugMessageCallback = reinterpret_cast<decltype(glDebugMessageCallback)>(getProcAddress("glDebugMessageCallback"));
+    glDebugMessageControl = reinterpret_cast<decltype(glDebugMessageControl)>(getProcAddress("glDebugMessageControl"));
 }

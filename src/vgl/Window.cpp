@@ -46,6 +46,66 @@ void printLastError() {
 
 
 // ------------------------------------------------------------------------------
+// [OpenGL] - Error handling
+// ------------------------------------------------------------------------------
+
+#ifdef VGL_OPENGL_DEBUG_MODE
+
+void APIENTRY openglDebugMessageCallback(   GLenum source,
+                                            GLenum type,
+                                            GLuint id,
+                                            GLenum severity,
+                                            GLsizei length,
+                                            const GLchar* message,
+                                            const void* userParam) {
+	std::cout << "---------------------opengl-callback-start------------" << std::endl;
+	std::cout << "message: "<< message << std::endl;
+	std::cout << "type: ";
+	switch (type) {
+	case GL_DEBUG_TYPE_ERROR:
+		std::cout << "ERROR";
+		break;
+	case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+		std::cout << "DEPRECATED_BEHAVIOR";
+		break;
+	case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+		std::cout << "UNDEFINED_BEHAVIOR";
+		break;
+	case GL_DEBUG_TYPE_PORTABILITY:
+		std::cout << "PORTABILITY";
+		break;
+	case GL_DEBUG_TYPE_PERFORMANCE:
+		std::cout << "PERFORMANCE";
+		break;
+	case GL_DEBUG_TYPE_OTHER:
+		std::cout << "OTHER";
+		break;
+	}
+	std::cout << std::endl;
+
+	std::cout << "id: " << id << std::endl;
+	std::cout << "severity: ";
+	switch (severity){
+    case GL_DEBUG_SEVERITY_NOTIFICATION:
+        std::cout << "NOTIFICATION";
+        break;
+	case GL_DEBUG_SEVERITY_LOW:
+		std::cout << "LOW";
+		break;
+	case GL_DEBUG_SEVERITY_MEDIUM:
+		std::cout << "MEDIUM";
+		break;
+	case GL_DEBUG_SEVERITY_HIGH:
+		std::cout << "HIGH";
+		break;
+	}
+	std::cout << std::endl;
+	std::cout << "---------------------opengl-callback-end--------------" << std::endl;
+}
+
+#endif
+
+// ------------------------------------------------------------------------------
 // Window management state with static storage duration
 // ------------------------------------------------------------------------------
 namespace vgl::internal {
@@ -116,16 +176,32 @@ void vgl::setOption(Option option, bool value)
 namespace vgl::internal {
 
 LRESULT CALLBACK windowMsgCallback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    // TODO handle WM_SIZE
     switch (uMsg) {
-    case WM_CLOSE:
-        internal::_windowMap[hWnd]->shouldClose();
+    case WM_CLOSE: 
+        {
+            internal::_windowMap[hWnd]->setShouldClose(true);
+            return 0;
+        }
+    case WM_MOVE:
+        {
+            internal::_windowMap[hWnd]->mX = LOWORD(lParam);
+            internal::_windowMap[hWnd]->mY = HIWORD(lParam);
+            return DefWindowProc(hWnd, uMsg, wParam, lParam);
+        }
+    case WM_SIZE:
+        {
+            internal::_windowMap[hWnd]->mWidth = LOWORD(lParam);
+            internal::_windowMap[hWnd]->mHeight = HIWORD(lParam);
+            return DefWindowProc(hWnd, uMsg, wParam, lParam);
+        }
     case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-    default:
-        return DefWindowProc(hWnd, uMsg, wParam, lParam);
+        {
+            PostQuitMessage(0);
+            return 0;
+        }
     }
+    return DefWindowProc(hWnd, uMsg, wParam, lParam);
+    
 }
 } // namespace vgl::internal
 #endif
@@ -180,6 +256,7 @@ vgl::Window::Window(int x, int y, int width, int height, std::string title)
 
     setupRenderingContext();
     loadGLFunctions(getProcAddress);
+    setupOpenGLDebugCallback();
 }
 
 void vgl::Window::setupRenderingContext()
@@ -230,13 +307,11 @@ void vgl::Window::setupRenderingContext()
         WGL_CONTEXT_MAJOR_VERSION_ARB, 3,   // Set the MAJOR version of OpenGL to 3
         WGL_CONTEXT_MINOR_VERSION_ARB, 2,   // Set the MINOR version of OpenGL to 2
         WGL_CONTEXT_FLAGS_ARB,
+        #ifdef VGL_OPENGL_DEBUG_MODE
+        WGL_CONTEXT_DEBUG_BIT_ARB |              // Set our OpenGL context to be forward compatible
+        #endif
         WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB, // Set our OpenGL context to be forward compatible
         0
-        // 0x2091, 4, // major version
-        // 0x2092, 6, // minor version
-        // 0x2094, 
-        // 0x0002, 0, // flag - context version changed 
-        // // 0x9126 , 0x00000001, // core profile
     };
     using createContext_t = HGLRC(WINAPI*)(HDC, HGLRC, const int*);
 
@@ -253,8 +328,21 @@ void vgl::Window::setupRenderingContext()
     #elif __unix__
     // TODO: implement
     #endif
+}
 
-    
+void vgl::Window::setupOpenGLDebugCallback()
+{
+    #ifdef VGL_OPENGL_DEBUG_MODE
+
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glDebugMessageCallback(openglDebugMessageCallback, nullptr);
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
+    // TODO: remove or add again
+    // glDebugMessageControl(GL_DONT_CARE, GL_DEBUG_TYPE_PERFORMANCE, GL_DONT_CARE, 0, nullptr, GL_FALSE);
+
+    #endif
 }
 
 void vgl::Window::makeGLContextCurrent() const
@@ -309,6 +397,11 @@ void vgl::Window::show() const
     #endif
 }
 
+void vgl::Window::setShouldClose(bool shouldClose)
+{
+    mShouldClose = shouldClose;
+}
+
 bool vgl::Window::shouldClose() const
 {
     return mShouldClose;
@@ -319,10 +412,6 @@ void vgl::Window::pollEvents()
     #ifdef _WIN32
     MSG msg = {};
     while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-        if (msg.message == WM_QUIT) {
-            mShouldClose = true;
-            break;
-        }
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
@@ -377,10 +466,11 @@ void vgl::Window::setViewport(int x, int y, int width, int height)
     mY = y;
     mWidth = width;
     mHeight = height;
+
     #ifdef _WIN32
     RECT rect = { x, y, x + width, y + height };
-    ENSURE_SUCCESS( AdjustWindowRect(&rect, WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, FALSE) );
-    ENSURE_SUCCESS( SetWindowPos(mWindowHandle, nullptr, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER) );
+    ENSURE_SUCCESS( AdjustWindowRect(&rect, GetWindowLong(mWindowHandle, GWL_STYLE), FALSE) );
+    ENSURE_SUCCESS( MoveWindow(mWindowHandle, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE) );
     #elif __unix__
     // TODO: implement
     #endif
