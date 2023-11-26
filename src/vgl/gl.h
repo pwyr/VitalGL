@@ -35,8 +35,10 @@ using GLfloat = float;
 #define GL_DONT_CARE 0x1100
 
 #define GL_COLOR_BUFFER_BIT 0x00004000
-// #define GL_DEPTH_BUFFER_BIT 0x00000100
+#define GL_DEPTH_BUFFER_BIT 0x00000100
 // #define GL_STENCIL_BUFFER_BIT 0x00000400
+
+#define GL_DEPTH_TEST 0x0B71
 
 #define GL_VERTEX_SHADER 0x8B31
 // #define GL_TESS_CONTROL_SHADER 0x8E88
@@ -100,6 +102,8 @@ extern void (*glUseProgram)(GLuint);
 extern void (*glDeleteProgram)(GLuint);
 
 extern GLint (*glGetUniformLocation)(GLuint, const GLchar*);
+extern void (*glUniform1f)(GLint, GLfloat);
+extern void (*glUniform3fv)(GLint, GLsizei, const GLfloat*);
 extern void (*glUniformMatrix4fv)(GLint, GLsizei, GLboolean, const GLfloat*);
 
 extern void (*glGenVertexArrays)(GLsizei, GLuint*);

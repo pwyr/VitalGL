@@ -11,8 +11,6 @@
 
 namespace vgl {
 
-
-
 class Shader {
 public:
     Shader(GLenum shaderType, const std::string& code);
@@ -46,6 +44,17 @@ private:
     GLuint mID;
 };
 
+using vec3 = std::array<GLfloat, 3>;
+using mat3 = std::array<std::array<GLfloat, 3>, 3>;
+using mat4 = std::array<std::array<GLfloat, 4>, 4>;
+
+struct Material {
+    vec3 ambientColor{0.0f, 0.0f, 0.0f};
+    vec3 diffuseColor{0.0f, 0.0f, 0.0f};
+    vec3 specularColor{0.0f, 0.0f, 0.0f};
+    GLfloat shininess = 0.0f;
+};
+
 struct MeshData {
     const GLfloat* vertices = nullptr;
     GLsizei vertexCount = 0;
@@ -59,14 +68,14 @@ struct MeshData {
     const GLuint* indices = nullptr;
     GLsizei indexCount = 0;
 
+    std::vector<Material> materials{};
+    std::vector<GLuint> matTriangleCount{};
+
     LightingModel lightingModel = LightingModel::None;
 };
 
 using SharedMeshData = std::shared_ptr<MeshData>;
 
-using vec3 = std::array<GLfloat, 3>;
-using mat3 = std::array<std::array<GLfloat, 3>, 3>;
-using mat4 = std::array<std::array<GLfloat, 4>, 4>;
 
 class Mesh;
 namespace internal{
@@ -117,7 +126,7 @@ private:
     bool mDirty = false;
     bool mDraw = false;
 
-    GLuint mVerticesVBO = 0, mEBO = 0, mVAO = 0;
+    GLuint mVerticesVBO = 0, mNormalsVBO = 0, mEBO = 0, mVAO = 0;
 
     mutable std::mutex mMutex;
     std::atomic<mat4> mModel = mat4{
@@ -133,6 +142,7 @@ class Camera {
 public:
     Camera();
 
+    vec3 position() const;
     mat4 viewMatrix() const;
     mat4 projectionMatrix() const;
 
@@ -173,6 +183,7 @@ private:
     mutable std::mutex mMutex;
 };
 
+// TODO: mutex
 class Scene {
 public:
     Scene() = default;
@@ -184,6 +195,12 @@ public:
 
     Camera& camera();
 
+    vec3 lightPosition() const;
+    vec3 lightAmbientColor() const;
+    vec3 lightDiffuseColor() const;
+    vec3 lightSpecularColor() const;
+
+
     // rendering thread only
     void update();
     void draw() const;
@@ -192,6 +209,9 @@ private:
 
     Camera mCamera{};
     vec3 mLightPosition{0.5f, 2.0f, 1.0f};
+    vec3 mLightAmbientColor{0.3f, 0.3f, 0.3f};
+    vec3 mLightDiffuseColor{0.8f, 0.8f, 0.8f};
+    vec3 mLightSpecularColor{1.0f, 1.0f, 1.0f};
 };
 
 } // namespace vgl

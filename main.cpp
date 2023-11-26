@@ -192,12 +192,47 @@ int main()
         24, 25, 26, 27, 28, 29,
         30, 31, 32, 33, 34, 35};
 
+    vgl::Material red, green, blue, yellow, orange, pink;
+    red.ambientColor = {0.3f, 0.0f, 0.0f};
+    red.diffuseColor = {0.6f, 0.0f, 0.0f};
+    red.specularColor = {0.8f, 0.6f, 0.6f};
+    red.shininess = 4.0f;
+
+    green.ambientColor = {0.0f, 0.3f, 0.0f};
+    green.diffuseColor = {0.0f, 0.6f, 0.0f};
+    green.specularColor = {0.6f, 0.8f, 0.6f};
+    green.shininess = 4.0f;
+
+    blue.ambientColor = {0.0f, 0.0f, 0.3f};
+    blue.diffuseColor = {0.0f, 0.0f, 0.6f};
+    blue.specularColor = {0.6f, 0.6f, 0.8f};
+    blue.shininess = 4.0f;
+
+    yellow.ambientColor = {0.3f, 0.3f, 0.0f};
+    yellow.diffuseColor = {0.6f, 0.6f, 0.0f};
+    yellow.specularColor = {0.8f, 0.8f, 0.6f};
+    yellow.shininess = 4.0f;
+
+    orange.ambientColor = {0.2f, 0.06f, 0.0f};
+    orange.diffuseColor = {0.6f, 0.3f, 0.0f};
+    orange.specularColor = {0.8f, 0.6f, 0.6f};
+    orange.shininess = 4.0f;
+
+    pink.ambientColor = {0.3f, 0.0f, 0.06f};
+    pink.diffuseColor = {0.6f, 0.0f, 0.3f};
+    pink.specularColor = {0.8f, 0.6f, 0.8f};
+    pink.shininess = 4.0f;
+
     vgl::SharedMeshData meshData = std::make_shared<vgl::MeshData>();
     meshData->vertices = vertices;
     meshData->vertexCount = 36*3;
+    meshData->normals = normals;
+    meshData->normalCount = 36*3;
     meshData->indices = indices;
     meshData->indexCount = 36;
-    meshData->lightingModel = vgl::LightingModel::None;
+    meshData->lightingModel = vgl::LightingModel::Phong;
+    meshData->materials = {red, green, blue, yellow, orange, pink};
+    meshData->matTriangleCount = {2, 2, 2, 2, 2, 2};
 
     vgl::Scene scene;
     auto &mesh = scene.addMesh(meshData);
@@ -208,7 +243,8 @@ int main()
 
     // vgl::Mesh mesh(meshData);
     // mesh.update();
-    scene.camera().setPosition({0.0f, 0.3f, 2.0f});
+    scene.camera().setPosition({0.0f, 1.8f, 3.0f});
+    scene.camera().rotate(0.5f, {1.0f, 0.0f, 0.0f});
 
     // measure frame time
     // ------------------
@@ -222,11 +258,13 @@ int main()
         w.pollEvents();
         glViewport(0, 0, w.width(), w.height());
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
 
         scene.camera().setAspectRatio(static_cast<float>(w.aspectRatio()));
+        mesh.rotate(0.01f, {0.5f, 1.0f, 0.0f});
         // scene.camera().translate({0.0f, 0.0f, 0.001f});
-        scene.camera().rotate(0.01f, {0.0f, 1.0f, 0.0f});
+        // scene.camera().rotate(0.01f, {0.0f, 1.0f, 0.0f});
 
         // draw our first triangle
         scene.draw();

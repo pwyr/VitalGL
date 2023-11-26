@@ -257,6 +257,8 @@ vgl::Window::Window(int x, int y, int width, int height, std::string title)
     setupRenderingContext();
     loadGLFunctions(getProcAddress);
     setupOpenGLDebugCallback();
+
+    glEnable(GL_DEPTH_TEST);
 }
 
 void vgl::Window::setupRenderingContext()

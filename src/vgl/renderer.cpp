@@ -13,8 +13,7 @@ uniform mat4 uProjection;
 
 void main()
 {
-    //uProjection * uView *
-    gl_Position = transpose(uProjection) * transpose(uView) * transpose(uModel) * vec4(aPos.x, aPos.y, aPos.z, 1.0);
+    gl_Position = uProjection * uView * uModel * vec4(aPos.x, aPos.y, aPos.z, 1.0);
 }
 )vs_none";
 
@@ -35,18 +34,58 @@ layout (location = 1) in vec3 aNormal;
 out vec3 FragPos;
 out vec3 Normal;
 
+uniform mat4 uModel;
+uniform mat4 uView;
+uniform mat4 uProjection;
+
 void main()
 {
-    FragPos = aPos;
-    Normal = aNormal;
-    gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+    FragPos = vec3(uModel * vec4(aPos, 1.0));
+    Normal = normalize(vec3(uModel * vec4(aNormal, 1.0)));
+    gl_Position = uProjection * uView * uModel * vec4(aPos.x, aPos.y, aPos.z, 1.0);
 }
 )vs_phong";
 
 const std::string fsPhong = R"fs_phong(
 #version 460 core
-layout (location = 0) 
 out vec4 FragColor;
+
+in vec3 FragPos;
+in vec3 Normal;
+
+struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;    
+    float shininess;
+};
+
+struct Light {
+    vec3 position;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
+uniform vec3 uViewPos;
+uniform Material uMaterial;
+uniform Light uLight;
+
+void main()
+{
+    vec3 ambient = uLight.ambient * uMaterial.ambient;
+
+    vec3 n = Normal;
+    vec3 l = normalize(uLight.position - FragPos);
+    vec3 diffuse = uLight.diffuse * uMaterial.diffuse * max(0.0f, dot(n, l));
+
+    vec3 v = normalize(uViewPos - FragPos);
+    // vec3 h = normalize(l + v);
+    vec3 r = reflect(-l, n);
+    vec3 specular = uLight.specular * uMaterial.specular * pow(max(0.0f, dot(r, v)), uMaterial.shininess);
+
+    FragColor = vec4(ambient + diffuse + specular, 1.0f);
+}
 )fs_phong";
 
 
@@ -98,7 +137,8 @@ vgl::Program::Program(LightingModel model)
         switch (model)
         {
         case LightingModel::Phong:
-            // TODO: implement
+            vs = std::make_unique<Shader>(GL_VERTEX_SHADER, vsPhong);
+            fs = std::make_unique<Shader>(GL_FRAGMENT_SHADER, fsPhong);
             break;
         case LightingModel::BlinnPhong:
             // TODO: implement
@@ -330,19 +370,37 @@ void vgl::Mesh::draw() const
     if (!mDraw) {
         return;
     }
-    // TODO: optimize
+    
     internal::_programMap.at(mData->lightingModel).use();
-    mat4 model = mModel.load();
-    glUniformMatrix4fv(glGetUniformLocation(internal::_programMap.at(mData->lightingModel).id(), "uModel"), 1, GL_FALSE, &model[0][0]);
+    GLuint program = internal::_programMap.at(mData->lightingModel).id();
 
+    mat4 model = mModel.load();
+    glUniformMatrix4fv(glGetUniformLocation(program, "uModel"), 1, GL_TRUE, &model[0][0]);
+
+    vec3 viewPos = mScene->camera().position();
+    glUniform3fv(glGetUniformLocation(program, "uViewPos"), 1, &viewPos[0]);
     mat4 view = mScene->camera().viewMatrix();
-    glUniformMatrix4fv(glGetUniformLocation(internal::_programMap.at(mData->lightingModel).id(), "uView"), 1, GL_FALSE, &view[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(program, "uView"), 1, GL_TRUE, &view[0][0]);
 
     mat4 projection = mScene->camera().projectionMatrix();
-    glUniformMatrix4fv(glGetUniformLocation(internal::_programMap.at(mData->lightingModel).id(), "uProjection"), 1, GL_FALSE, &projection[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(program, "uProjection"), 1, GL_TRUE, &projection[0][0]);
+
+    glUniform3fv(glGetUniformLocation(program, "uLight.position"), 1, &mScene->lightPosition()[0]);
+    glUniform3fv(glGetUniformLocation(program, "uLight.ambient"), 1, &mScene->lightAmbientColor()[0]);
+    glUniform3fv(glGetUniformLocation(program, "uLight.diffuse"), 1, &mScene->lightDiffuseColor()[0]);
+    glUniform3fv(glGetUniformLocation(program, "uLight.specular"), 1, &mScene->lightSpecularColor()[0]);
 
     glBindVertexArray(mVAO);
-    glDrawElements(GL_TRIANGLES, mData->indexCount, GL_UNSIGNED_INT, 0);
+    size_t primitive = 0;
+    for (int i = 0; i < mData->materials.size(); ++i) {
+        glUniform3fv(glGetUniformLocation(program, "uMaterial.ambient"), 1, &mData->materials[i].ambientColor[0]);
+        glUniform3fv(glGetUniformLocation(program, "uMaterial.diffuse"), 1, &mData->materials[i].diffuseColor[0]);
+        glUniform3fv(glGetUniformLocation(program, "uMaterial.specular"), 1, &mData->materials[i].specularColor[0]);
+        glUniform1f(glGetUniformLocation(program, "uMaterial.shininess"), mData->materials[i].shininess);
+        glDrawElements(GL_TRIANGLES, mData->matTriangleCount[i] * 3, GL_UNSIGNED_INT, (void*)(primitive * sizeof(GLuint)));
+        primitive += mData->matTriangleCount[i] * 3;
+    }
+
     glBindVertexArray(0);
 }
 
@@ -369,6 +427,12 @@ void vgl::Mesh::createGLObjects()
         mDraw = false;
         return;
     }
+    // TODO: adapt to lighting model
+    glGenBuffers(1, &mNormalsVBO);
+    if (mNormalsVBO == 0) {
+        mDraw = false;
+        return;
+    }
     glGenBuffers(1, &mEBO);
     if (mEBO == 0) {
         mDraw = false;
@@ -379,12 +443,24 @@ void vgl::Mesh::createGLObjects()
 
     if (mData->vertices && mData->vertexCount > 0) {
         glBindBuffer(GL_ARRAY_BUFFER, mVerticesVBO);
-        glBufferData(GL_ARRAY_BUFFER, mData->vertexCount * sizeof(float), mData->vertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, mData->vertexCount * sizeof(GLfloat), mData->vertices, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+        glEnableVertexAttribArray(0);
     } else {
         mDraw = false;
         return;
     }
 
+    if (mData->normals && mData->normalCount == mData->vertexCount) {
+        glBindBuffer(GL_ARRAY_BUFFER, mNormalsVBO);
+        glBufferData(GL_ARRAY_BUFFER, mData->normalCount * sizeof(GLfloat), mData->normals, GL_STATIC_DRAW);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
+        glEnableVertexAttribArray(1);
+    } else {
+        mDraw = false;
+        return;
+    }
+        
     if (mData->indices && mData->indexCount > 0) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mEBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, mData->indexCount * sizeof(GLuint), mData->indices, GL_STATIC_DRAW);
@@ -392,10 +468,7 @@ void vgl::Mesh::createGLObjects()
         mDraw = false;
         return;
     }
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
+    
     glBindVertexArray(0);
 
     internal::_programMap.try_emplace(mData->lightingModel, mData->lightingModel);
@@ -415,6 +488,12 @@ vgl::Camera::Camera()
 {
     updateViewMatrix();
     updateProjectionMatrix();
+}
+
+vgl::vec3 vgl::Camera::position() const
+{
+    std::lock_guard<std::mutex> lock(mMutex);
+    return mPosition;
 }
 
 vgl::mat4 vgl::Camera::viewMatrix() const
@@ -574,6 +653,26 @@ vgl::Mesh &vgl::Scene::addMesh(SharedMeshData data)
 vgl::Camera &vgl::Scene::camera()
 {
     return mCamera;
+}
+
+vgl::vec3 vgl::Scene::lightPosition() const
+{
+    return mLightPosition;    
+}
+
+vgl::vec3 vgl::Scene::lightAmbientColor() const
+{
+    return mLightAmbientColor;
+}
+
+vgl::vec3 vgl::Scene::lightDiffuseColor() const
+{
+    return mLightDiffuseColor;
+}
+
+vgl::vec3 vgl::Scene::lightSpecularColor() const
+{
+    return mLightSpecularColor;
 }
 
 void vgl::Scene::update()
