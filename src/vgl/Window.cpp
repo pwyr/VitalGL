@@ -440,6 +440,11 @@ int vgl::Window::height() const
     return mHeight;
 }
 
+double vgl::Window::aspectRatio() const
+{
+    return static_cast<double>(mWidth) / mHeight;
+}
+
 void vgl::Window::setPosition(int x, int y)
 {
     setViewport(x, y, mWidth, mHeight);

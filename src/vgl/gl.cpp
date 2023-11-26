@@ -23,6 +23,9 @@ void (*glGetProgramInfoLog)(GLuint, GLsizei, GLsizei*, GLchar*) = nullptr;
 void (*glUseProgram)(GLuint) = nullptr;
 void (*glDeleteProgram)(GLuint) = nullptr;
 
+GLint (*glGetUniformLocation)(GLuint, const GLchar*) = nullptr;
+void (*glUniformMatrix4fv)(GLint, GLsizei, GLboolean, const GLfloat*) = nullptr;
+
 void (*glGenVertexArrays)(GLsizei, GLuint*) = nullptr;
 void (*glBindVertexArray)(GLuint) = nullptr;
 void (*glDeleteVertexArrays)(GLsizei, const GLuint*) = nullptr;
@@ -63,6 +66,9 @@ void vgl::loadGLFunctions(void* (*getProcAddress)(const char*))
     glGetProgramInfoLog = reinterpret_cast<decltype(glGetProgramInfoLog)>(getProcAddress("glGetProgramInfoLog"));
     glUseProgram = reinterpret_cast<decltype(glUseProgram)>(getProcAddress("glUseProgram"));
     glDeleteProgram = reinterpret_cast<decltype(glDeleteProgram)>(getProcAddress("glDeleteProgram"));
+
+    glGetUniformLocation = reinterpret_cast<decltype(glGetUniformLocation)>(getProcAddress("glGetUniformLocation"));
+    glUniformMatrix4fv = reinterpret_cast<decltype(glUniformMatrix4fv)>(getProcAddress("glUniformMatrix4fv"));
 
     glGenVertexArrays = reinterpret_cast<decltype(glGenVertexArrays)>(getProcAddress("glGenVertexArrays"));
     glBindVertexArray = reinterpret_cast<decltype(glBindVertexArray)>(getProcAddress("glBindVertexArray"));

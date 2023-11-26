@@ -51,6 +51,8 @@ public:
     int width() const;
     int height() const;
 
+    double aspectRatio() const;
+
     void setPosition(int x, int y);
 
     void setWidth(int width);

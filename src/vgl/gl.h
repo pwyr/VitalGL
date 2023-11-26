@@ -99,6 +99,9 @@ extern void (*glGetProgramInfoLog)(GLuint, GLsizei, GLsizei*, GLchar*);
 extern void (*glUseProgram)(GLuint);
 extern void (*glDeleteProgram)(GLuint);
 
+extern GLint (*glGetUniformLocation)(GLuint, const GLchar*);
+extern void (*glUniformMatrix4fv)(GLint, GLsizei, GLboolean, const GLfloat*);
+
 extern void (*glGenVertexArrays)(GLsizei, GLuint*);
 extern void (*glBindVertexArray)(GLuint);
 extern void (*glDeleteVertexArrays)(GLsizei, const GLuint*);
