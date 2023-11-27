@@ -266,7 +266,6 @@ vgl::Window::Window(int x, int y, int width, int height, std::string title)
     glEnable(GL_DEPTH_TEST);
 
     #ifdef _WIN32
-
     // vertical synchronization
     void* getExtensionStringsVoidPtr = getProcAddress("wglGetExtensionsStringEXT");
     ENSURE_NOT_NULL( getExtensionStringsVoidPtr );
@@ -282,7 +281,6 @@ vgl::Window::Window(int x, int y, int width, int height, std::string title)
     } else {
         disableVSync();
     }
-
     #elif __unix__
     // TODO: implement
     #endif
@@ -311,14 +309,14 @@ void vgl::Window::setupRenderingContext()
         0, 0, 0
     };
 
-    HDC deviceContext = GetDC(mWindowHandle);
-    ENSURE_NOT_NULL( deviceContext );
+    mDeviceContext = GetDC(mWindowHandle);
+    ENSURE_NOT_NULL( mDeviceContext );
 
-    int pixelFormat = ChoosePixelFormat(deviceContext, &pfd);
+    int pixelFormat = ChoosePixelFormat(mDeviceContext, &pfd);
     ENSURE_NOT_NULL( pixelFormat );
-    ENSURE_SUCCESS( SetPixelFormat(deviceContext, pixelFormat, &pfd) );
+    ENSURE_SUCCESS( SetPixelFormat(mDeviceContext, pixelFormat, &pfd) );
 
-    mRenderingContext = wglCreateContext(deviceContext);
+    mRenderingContext = wglCreateContext(mDeviceContext);
     ENSURE_NOT_NULL( mRenderingContext );
 
     makeGLContextCurrent();
@@ -345,14 +343,14 @@ void vgl::Window::setupRenderingContext()
     using createContext_t = HGLRC(WINAPI*)(HDC, HGLRC, const int*);
 
     createContext_t wglCreateContextAttribsARB = reinterpret_cast<createContext_t>(getProcAddress("wglCreateContextAttribsARB"));
-    HGLRC newContext = wglCreateContextAttribsARB(deviceContext, nullptr, attribs);
+    HGLRC newContext = wglCreateContextAttribsARB(mDeviceContext, nullptr, attribs);
     ENSURE_NOT_NULL( newContext );
 
-    ENSURE_SUCCESS( wglMakeCurrent(deviceContext, nullptr) );
+    ENSURE_SUCCESS( wglMakeCurrent(mDeviceContext, nullptr) );
     ENSURE_SUCCESS( wglDeleteContext(mRenderingContext) );
 
     mRenderingContext = newContext;
-    ENSURE_SUCCESS( wglMakeCurrent(deviceContext, mRenderingContext) );
+    ENSURE_SUCCESS( wglMakeCurrent(mDeviceContext, mRenderingContext) );
 
     #elif __unix__
     // TODO: implement
@@ -377,9 +375,7 @@ void vgl::Window::setupOpenGLDebugCallback()
 void vgl::Window::makeGLContextCurrent() const
 {
     #ifdef _WIN32
-    HDC deviceContext = GetDC(mWindowHandle);
-    ENSURE_NOT_NULL( deviceContext );
-    ENSURE_SUCCESS( wglMakeCurrent(deviceContext, mRenderingContext) );
+    ENSURE_SUCCESS( wglMakeCurrent(mDeviceContext, mRenderingContext) );
     #elif __unix__
     // TODO: implement
     #endif
@@ -388,9 +384,7 @@ void vgl::Window::makeGLContextCurrent() const
 void vgl::Window::releaseGLContext() const
 {
     #ifdef _WIN32
-    HDC deviceContext = GetDC(mWindowHandle);
-    ENSURE_NOT_NULL( deviceContext );
-    ENSURE_SUCCESS( wglMakeCurrent(deviceContext, nullptr) );
+    ENSURE_SUCCESS( wglMakeCurrent(mDeviceContext, nullptr) );
     #elif __unix__
     // TODO: implement
     #endif
@@ -560,9 +554,7 @@ void vgl::Window::setResizable(bool resizable)
 void vgl::Window::swapBuffers() const
 {
     #ifdef _WIN32
-    HDC deviceContext = GetDC(mWindowHandle);
-    ENSURE_NOT_NULL( deviceContext );
-    ENSURE_SUCCESS( SwapBuffers(deviceContext) );
+    ENSURE_SUCCESS( SwapBuffers(mDeviceContext) );
     #elif __unix__
     // TODO: implement
     #endif

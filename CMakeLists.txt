@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.27.4)
 
+project(vital-gl VERSION 0.1.0 LANGUAGES CXX)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -24,7 +26,7 @@ endif()
 add_compile_definitions(VGL_OPENGL_DEBUG_MODE=1)
 
 set(VITALGL_SOURCES
-    main.cpp
+    src/vgl/vgl.h
     src/vgl/app.h
     src/vgl/app.cpp
     src/vgl/window.h
@@ -35,7 +37,7 @@ set(VITALGL_SOURCES
     src/vgl/gl.cpp
 )
 
-add_executable(vital-gl ${VITALGL_SOURCES})
+add_library(vital-gl STATIC ${VITALGL_SOURCES})
 
 find_package(OpenGL REQUIRED)
 target_include_directories(vital-gl PRIVATE ${OPENGL_INCLUDE_DIRS})
@@ -45,3 +47,7 @@ target_link_libraries(vital-gl ${OPENGL_LIBRARIES})
 
 get_target_property(VITALGL_BINARY_DIR vital-gl BINARY_DIR)
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/icon/vgl.ico DESTINATION ${BIN_DIR}/icon/)
+
+add_executable(example main.cpp)
+target_include_directories(example PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/)
+target_link_libraries(example vital-gl)

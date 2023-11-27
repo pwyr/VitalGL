@@ -24,7 +24,7 @@ public:
     virtual void draw();
 
 protected:
-    double mTimeStep = 1.0 / 120.0;
+    double mTimeStep = 1.0 / 60.0;
 
     Window mWindow;
     Scene mScene;
@@ -33,11 +33,13 @@ protected:
 
 class LambdaApp : public App {
 public:
-    LambdaApp(int x, int y, int width, int height, const std::string& title, std::function<void(double)> updateFunc);
+    LambdaApp(int x, int y, int width, int height, const std::string& title);
+
+    void setUpdateFunc(std::function<void(double)> updateFunc);
 
     void update(double deltaTime) override;
 private:
-    std::function<void(double)> mUpdateFunc;
+    std::function<void(double)> mUpdateFunc = [](double) {};
 };
 
 class AsyncApp : public App {
@@ -56,11 +58,13 @@ protected:
 
 class AsyncLambdaApp : public AsyncApp {
 public:
-    AsyncLambdaApp(int x, int y, int width, int height, const std::string& title, std::function<void(double)> updateFunc);
+    AsyncLambdaApp(int x, int y, int width, int height, const std::string& title);
+
+    void setUpdateFunc(std::function<void(double)> updateFunc);
 
     void update(double deltaTime) override;
 private:
-    std::function<void(double)> mUpdateFunc;
+    std::function<void(double)> mUpdateFunc = [](double) {};
 };
 
 } // namespace vgl

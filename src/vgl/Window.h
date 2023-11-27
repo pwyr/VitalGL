@@ -95,6 +95,7 @@ private:
 #ifdef _WIN32
     std::wstring mTitle;
     HWND mWindowHandle;
+    HDC mDeviceContext;
     HGLRC mRenderingContext;
     const wchar_t* mWindowClassName = L"VitalGLWindow";
 #endif

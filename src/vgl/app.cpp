@@ -19,6 +19,19 @@ vgl::Window &vgl::App::window()
     return mWindow; 
 }
 
+// struct Timer {
+//     Timer() {
+//         startTime = std::chrono::high_resolution_clock::now();
+//     }
+
+//     void stop() {
+//         auto endTime = std::chrono::high_resolution_clock::now();
+//         std::cout << std::chrono::duration_cast<std::chrono::duration<double>>(endTime - startTime).count() << std::endl;
+//     }
+
+//     std::chrono::high_resolution_clock::time_point startTime;
+// };
+
 [[noreturn]] void vgl::App::run()
 {
     using time_point = std::chrono::high_resolution_clock::time_point;
@@ -48,6 +61,8 @@ vgl::Window &vgl::App::window()
         }
 
         draw();
+        skippedFrames = 0;
+
         mWindow.swapBuffers();
     }
 }
@@ -70,9 +85,14 @@ void vgl::App::draw()
     mScene.draw();
 }
 
-vgl::LambdaApp::LambdaApp(int x, int y, int width, int height, const std::string& title, std::function<void(double)> updateFunc)
-    : App(x, y, width, height, title), mUpdateFunc(updateFunc)
+vgl::LambdaApp::LambdaApp(int x, int y, int width, int height, const std::string& title)
+    : App(x, y, width, height, title)
 {
+}
+
+void vgl::LambdaApp::setUpdateFunc(std::function<void(double)> updateFunc)
+{
+    mUpdateFunc = updateFunc;
 }
 
 void vgl::LambdaApp::update(double deltaTime)
@@ -105,6 +125,7 @@ void vgl::AsyncApp::run()
         lastTime = currentTime;
         if (deltaTime > mTimeStep) {
             update(mTimeStep);
+            deltaTime -= mTimeStep;
         }
     }
     mShouldClose = true;
@@ -120,9 +141,14 @@ void vgl::AsyncApp::renderLoop()
     }
 }
 
-vgl::AsyncLambdaApp::AsyncLambdaApp(int x, int y, int width, int height, const std::string &title, std::function<void(double)> updateFunc)
-    : AsyncApp(x, y, width, height, title), mUpdateFunc(updateFunc)
+vgl::AsyncLambdaApp::AsyncLambdaApp(int x, int y, int width, int height, const std::string &title)
+    : AsyncApp(x, y, width, height, title)
 {
+}
+
+void vgl::AsyncLambdaApp::setUpdateFunc(std::function<void(double)> updateFunc)
+{
+    mUpdateFunc = updateFunc;
 }
 
 void vgl::AsyncLambdaApp::update(double deltaTime)

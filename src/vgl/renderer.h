@@ -208,7 +208,7 @@ private:
     std::vector<Mesh> mMeshes{};
 
     Camera mCamera{};
-    vec3 mLightPosition{0.5f, 2.0f, 1.0f};
+    vec3 mLightPosition{0.5f, 2.0f, 4.0f};
     vec3 mLightAmbientColor{0.3f, 0.3f, 0.3f};
     vec3 mLightDiffuseColor{0.8f, 0.8f, 0.8f};
     vec3 mLightSpecularColor{1.0f, 1.0f, 1.0f};

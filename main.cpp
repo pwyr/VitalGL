@@ -235,9 +235,14 @@ int main()
     meshData->materials = {red, green, pink, yellow, orange, blue};
     meshData->matTriangleCount = {2, 2, 2, 2, 2, 2};
 
-    vgl::AsyncLambdaApp app(100, 100, 400, 400, "Example", [](double) {});
+    vgl::LambdaApp app(100, 100, 400, 400, "Example");
     
     auto &mesh = app.scene().addMesh(meshData);
+
+    app.setUpdateFunc([&mesh](double deltaTime) {
+        mesh.rotate(static_cast<float>(deltaTime) * 1.f, {0.5f, 1.0f, 0.0f});
+    });
+
     app.run();
 
     // vgl::Scene scene;
