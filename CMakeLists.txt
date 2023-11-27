@@ -40,8 +40,8 @@ set(VITALGL_SOURCES
 add_library(vital-gl STATIC ${VITALGL_SOURCES})
 
 find_package(OpenGL REQUIRED)
-target_include_directories(vital-gl PRIVATE ${OPENGL_INCLUDE_DIRS})
-target_include_directories(vital-gl PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/)
+target_include_directories(vital-gl PUBLIC ${OPENGL_INCLUDE_DIRS})
+target_include_directories(vital-gl PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src/)
 
 target_link_libraries(vital-gl ${OPENGL_LIBRARIES})
 
