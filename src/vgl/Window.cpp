@@ -112,7 +112,9 @@ namespace vgl::internal {
 
 bool _defaultShow = true;
 bool _defaultResizable = true;
+bool _defaultVSync = false;
 
+BOOL (*_swapInterval)(int) = nullptr;
 
 #ifdef _WIN32
     HINSTANCE _instanceHandle;
@@ -164,6 +166,9 @@ void vgl::setOption(Option option, bool value)
         break;
     case Option::DefaultResizableWindow:
         internal::_defaultResizable = value;
+        break;
+    case Option::DefaultVSync:
+        internal::_defaultVSync = value;
         break;
     }
 }
@@ -259,6 +264,28 @@ vgl::Window::Window(int x, int y, int width, int height, std::string title)
     setupOpenGLDebugCallback();
 
     glEnable(GL_DEPTH_TEST);
+
+    #ifdef _WIN32
+
+    // vertical synchronization
+    void* getExtensionStringsVoidPtr = getProcAddress("wglGetExtensionsStringEXT");
+    ENSURE_NOT_NULL( getExtensionStringsVoidPtr );
+    auto getExtensionStrings = reinterpret_cast<const char*(*)(void)>(getExtensionStringsVoidPtr);
+    const char* extNamePtr = std::strstr(getExtensionStrings(), "WGL_EXT_swap_control");
+    ENSURE_NOT_NULL( extNamePtr ); // => extension supported
+
+    void* swapIntervalVoidPtr = getProcAddress("wglSwapIntervalEXT");
+    ENSURE_NOT_NULL( swapIntervalVoidPtr );
+    internal::_swapInterval = reinterpret_cast<BOOL(*)(int)>(swapIntervalVoidPtr);
+    if (internal::_defaultVSync) {
+        enableVSync();
+    } else {
+        disableVSync();
+    }
+
+    #elif __unix__
+    // TODO: implement
+    #endif
 }
 
 void vgl::Window::setupRenderingContext()
@@ -407,6 +434,32 @@ void vgl::Window::setShouldClose(bool shouldClose)
 bool vgl::Window::shouldClose() const
 {
     return mShouldClose;
+}
+
+void vgl::Window::enableVSync()
+{
+    #ifdef _WIN32
+
+    ENSURE_NOT_NULL( internal::_swapInterval );
+    BOOL success = internal::_swapInterval(1);
+    ENSURE_SUCCESS( success );
+
+    #elif __unix__
+    // TODO: implement
+    #endif
+}
+
+void vgl::Window::disableVSync()
+{
+    #ifdef _WIN32
+
+    ENSURE_NOT_NULL( internal::_swapInterval );
+    BOOL success = internal::_swapInterval(0);
+    ENSURE_SUCCESS( success );
+
+    #elif __unix__
+    // TODO: implement
+    #endif
 }
 
 void vgl::Window::pollEvents()

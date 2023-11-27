@@ -80,13 +80,53 @@ void main()
     vec3 diffuse = uLight.diffuse * uMaterial.diffuse * max(0.0f, dot(n, l));
 
     vec3 v = normalize(uViewPos - FragPos);
-    // vec3 h = normalize(l + v);
     vec3 r = reflect(-l, n);
     vec3 specular = uLight.specular * uMaterial.specular * pow(max(0.0f, dot(r, v)), uMaterial.shininess);
 
     FragColor = vec4(ambient + diffuse + specular, 1.0f);
 }
 )fs_phong";
+
+const std::string fsBlinnPhong = R"fs_blinn_phong(
+#version 460 core
+out vec4 FragColor;
+
+in vec3 FragPos;
+in vec3 Normal;
+
+struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;    
+    float shininess;
+};
+
+struct Light {
+    vec3 position;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
+uniform vec3 uViewPos;
+uniform Material uMaterial;
+uniform Light uLight;
+
+void main()
+{
+    vec3 ambient = uLight.ambient * uMaterial.ambient;
+
+    vec3 n = Normal;
+    vec3 l = normalize(uLight.position - FragPos);
+    vec3 diffuse = uLight.diffuse * uMaterial.diffuse * max(0.0f, dot(n, l));
+
+    vec3 v = normalize(uViewPos - FragPos);
+    vec3 h = normalize(l + v);
+    vec3 specular = uLight.specular * uMaterial.specular * pow(max(0.0f, dot(h, n)), uMaterial.shininess);
+
+    FragColor = vec4(ambient + diffuse + specular, 1.0f);
+}
+)fs_blinn_phong";
 
 
 
@@ -141,7 +181,8 @@ vgl::Program::Program(LightingModel model)
             fs = std::make_unique<Shader>(GL_FRAGMENT_SHADER, fsPhong);
             break;
         case LightingModel::BlinnPhong:
-            // TODO: implement
+            vs = std::make_unique<Shader>(GL_VERTEX_SHADER, vsPhong);
+            fs = std::make_unique<Shader>(GL_FRAGMENT_SHADER, fsBlinnPhong);
             break;
         case LightingModel::CookTorrance:
             // TODO: implement
@@ -684,6 +725,8 @@ void vgl::Scene::update()
 
 void vgl::Scene::draw() const
 {
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     for (const Mesh& mesh : mMeshes) {
         mesh.draw();
     }

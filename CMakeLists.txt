@@ -25,6 +25,8 @@ add_compile_definitions(VGL_OPENGL_DEBUG_MODE=1)
 
 set(VITALGL_SOURCES
     main.cpp
+    src/vgl/app.h
+    src/vgl/app.cpp
     src/vgl/window.h
     src/vgl/window.cpp
     src/vgl/renderer.h

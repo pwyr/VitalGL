@@ -4,6 +4,7 @@
 #include <vgl/gl.h>
 #include <vgl/renderer.h>
 #include <chrono>
+#include <vgl/app.h>
 
 // TODO: remove file (for testing purposes only)
 
@@ -26,10 +27,10 @@ int main()
     vgl::setOption(vgl::Option::DefaultShowWindow, true);
     vgl::setOption(vgl::Option::DefaultResizableWindow, true);
 
-    vgl::Window w(100, 100, 800, 600, "VitalGL");
-    w.setTitle("VitalGL");
-    w.setViewport(200, 200, 400, 300);
-    w.setResizable(true);
+    // vgl::Window w(100, 100, 800, 600, "VitalGL");
+    // w.setTitle("VitalGL");
+    // w.setViewport(200, 200, 400, 300);
+    // w.setResizable(true);
 
     // w.releaseGLContext();
     // w.makeGLContextCurrent();
@@ -38,7 +39,7 @@ int main()
     // ------------------------------------
     // vertex shader
 
-    vgl::Shader vertexShader(GL_VERTEX_SHADER, vertexShaderSource);
+    // vgl::Shader vertexShader(GL_VERTEX_SHADER, vertexShaderSource);
 
     // unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
     // glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
@@ -76,7 +77,7 @@ int main()
     // }
     // glDeleteShader(fragmentShader);
 
-    vgl::Program program(vgl::LightingModel::None);
+    // vgl::Program program(vgl::LightingModel::None);
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -196,12 +197,12 @@ int main()
     red.ambientColor = {0.3f, 0.0f, 0.0f};
     red.diffuseColor = {0.6f, 0.0f, 0.0f};
     red.specularColor = {0.8f, 0.6f, 0.6f};
-    red.shininess = 4.0f;
+    red.shininess = 32.0f;
 
     green.ambientColor = {0.0f, 0.3f, 0.0f};
     green.diffuseColor = {0.0f, 0.6f, 0.0f};
     green.specularColor = {0.6f, 0.8f, 0.6f};
-    green.shininess = 4.0f;
+    green.shininess = 32.0f;
 
     blue.ambientColor = {0.0f, 0.0f, 0.3f};
     blue.diffuseColor = {0.0f, 0.0f, 0.6f};
@@ -211,17 +212,17 @@ int main()
     yellow.ambientColor = {0.3f, 0.3f, 0.0f};
     yellow.diffuseColor = {0.6f, 0.6f, 0.0f};
     yellow.specularColor = {0.8f, 0.8f, 0.6f};
-    yellow.shininess = 4.0f;
+    yellow.shininess = 32.0f;
 
     orange.ambientColor = {0.2f, 0.06f, 0.0f};
     orange.diffuseColor = {0.6f, 0.3f, 0.0f};
     orange.specularColor = {0.8f, 0.6f, 0.6f};
-    orange.shininess = 4.0f;
+    orange.shininess = 32.0f;
 
     pink.ambientColor = {0.3f, 0.0f, 0.06f};
     pink.diffuseColor = {0.6f, 0.0f, 0.3f};
     pink.specularColor = {0.8f, 0.6f, 0.8f};
-    pink.shininess = 4.0f;
+    pink.shininess = 32.0f;
 
     vgl::SharedMeshData meshData = std::make_shared<vgl::MeshData>();
     meshData->vertices = vertices;
@@ -230,49 +231,54 @@ int main()
     meshData->normalCount = 36*3;
     meshData->indices = indices;
     meshData->indexCount = 36;
-    meshData->lightingModel = vgl::LightingModel::Phong;
-    meshData->materials = {red, green, blue, yellow, orange, pink};
+    meshData->lightingModel = vgl::LightingModel::BlinnPhong;
+    meshData->materials = {red, green, pink, yellow, orange, blue};
     meshData->matTriangleCount = {2, 2, 2, 2, 2, 2};
 
-    vgl::Scene scene;
-    auto &mesh = scene.addMesh(meshData);
+    vgl::LambdaApp app(100, 100, 400, 400, "Example", [](double) {});
+    
+    auto &mesh = app.scene().addMesh(meshData);
+    app.run();
+
+    // vgl::Scene scene;
+    // auto &mesh = scene.addMesh(meshData);
     // mesh.translate({0.0f, -10.5f, 0.0f});
     // mesh.scale(1.0f);
     // mesh.rotate(45.0f, {0.0f, 0.0f, 1.0f});
-    scene.update();
+    // scene.update();
 
     // vgl::Mesh mesh(meshData);
     // mesh.update();
-    scene.camera().setPosition({0.0f, 1.8f, 3.0f});
-    scene.camera().rotate(0.5f, {1.0f, 0.0f, 0.0f});
+    // scene.camera().setPosition({0.0f, 1.8f, 3.0f});
+    // scene.camera().rotate(0.5f, {1.0f, 0.0f, 0.0f});
 
     // measure frame time
     // ------------------
-    float deltaTime = 0.0f;
-    std::chrono::high_resolution_clock::time_point lastFrame;
+    // float deltaTime = 0.0f;
+    // std::chrono::high_resolution_clock::time_point lastFrame;
     // render loop
 
-    while (!w.shouldClose())
-    {
-        lastFrame = std::chrono::high_resolution_clock::now();
-        w.pollEvents();
-        glViewport(0, 0, w.width(), w.height());
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // while (!w.shouldClose())
+    // {
+    //     lastFrame = std::chrono::high_resolution_clock::now();
+    //     w.pollEvents();
+    //     glViewport(0, 0, w.width(), w.height());
+    //     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    //     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
 
-        scene.camera().setAspectRatio(static_cast<float>(w.aspectRatio()));
-        mesh.rotate(0.01f, {0.5f, 1.0f, 0.0f});
-        // scene.camera().translate({0.0f, 0.0f, 0.001f});
-        // scene.camera().rotate(0.01f, {0.0f, 1.0f, 0.0f});
+    //     scene.camera().setAspectRatio(static_cast<float>(w.aspectRatio()));
+    //     mesh.rotate(0.01f, {0.5f, 1.0f, 0.0f});
+    //     // scene.camera().translate({0.0f, 0.0f, 0.001f});
+    //     // scene.camera().rotate(0.01f, {0.0f, 1.0f, 0.0f});
 
-        // draw our first triangle
-        scene.draw();
+    //     // draw our first triangle
+    //     scene.draw();
 
-        deltaTime = static_cast<float>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - lastFrame).count()) / 1'000'000;
-        w.swapBuffers();
-        // std::cout << deltaTime << std::endl;
-    }
+    //     deltaTime = static_cast<float>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - lastFrame).count()) / 1'000'000;
+    //     w.swapBuffers();
+    //     // std::cout << deltaTime << std::endl;
+    // }
 
     return 0;
 }

@@ -18,6 +18,7 @@ void* getProcAddress(const char* name);
 enum class Option {
     DefaultShowWindow,
     DefaultResizableWindow,
+    DefaultVSync,
 };
 
 void setOption(Option option, bool value);
@@ -43,6 +44,9 @@ public:
 
     void setShouldClose(bool shouldClose);
     bool shouldClose() const;
+
+    void enableVSync();
+    void disableVSync();
 
     void pollEvents();
 
