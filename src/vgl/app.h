@@ -8,7 +8,6 @@
 
 namespace vgl{
 
-// async rendering, fixed timestep
 class App {
 public:
     App(int x, int y, int width, int height, const std::string& title);
@@ -36,7 +35,7 @@ class LambdaApp : public App {
 public:
     LambdaApp(int x, int y, int width, int height, const std::string& title, std::function<void(double)> updateFunc);
 
-    [[noreturn]] void update(double deltaTime) override;
+    void update(double deltaTime) override;
 private:
     std::function<void(double)> mUpdateFunc;
 };
@@ -48,9 +47,20 @@ public:
     [[noreturn]] void run() override;
     [[noreturn]] void renderLoop();
 
+    virtual void update(double deltaTime) = 0;
+
 protected:
     std::thread mRenderThread;
     std::atomic<bool> mShouldClose = false;
+};
+
+class AsyncLambdaApp : public AsyncApp {
+public:
+    AsyncLambdaApp(int x, int y, int width, int height, const std::string& title, std::function<void(double)> updateFunc);
+
+    void update(double deltaTime) override;
+private:
+    std::function<void(double)> mUpdateFunc;
 };
 
 } // namespace vgl

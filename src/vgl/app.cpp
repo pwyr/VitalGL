@@ -35,7 +35,6 @@ vgl::Window &vgl::App::window()
 
         currentTime = std::chrono::high_resolution_clock::now();
         deltaTime += std::chrono::duration_cast<std::chrono::duration<double>>(currentTime - lastTime).count();
-        std::cout << deltaTime << std::endl;
         lastTime = currentTime;
         while (deltaTime > mTimeStep) {
             update(mTimeStep);
@@ -82,12 +81,15 @@ void vgl::LambdaApp::update(double deltaTime)
 }
 
 vgl::AsyncApp::AsyncApp(int x, int y, int width, int height, const std::string &title)
-    : App(x, y, width, height, title), mRenderThread(&AsyncApp::renderLoop, this)
+    : App(x, y, width, height, title)
 {
 }
 
 void vgl::AsyncApp::run()
 {
+    window().releaseGLContext();
+    mRenderThread = std::thread(&AsyncApp::renderLoop, this);
+
     using time_point = std::chrono::high_resolution_clock::time_point;
     
     time_point lastTime, currentTime;
@@ -101,22 +103,29 @@ void vgl::AsyncApp::run()
         currentTime = std::chrono::high_resolution_clock::now();
         deltaTime += std::chrono::duration_cast<std::chrono::duration<double>>(currentTime - lastTime).count();
         lastTime = currentTime;
-        if (deltaTime < mTimeStep) {
-            std::this_thread::sleep_for(std::chrono::duration<double>(mTimeStep - deltaTime));
-            continue;
+        if (deltaTime > mTimeStep) {
+            update(mTimeStep);
         }
-        update(deltaTime);
-        
-        draw();
-        mWindow.swapBuffers();
-        deltaTime = 0.0;
     }
+    mShouldClose = true;
+    mRenderThread.join();
 }
 
 void vgl::AsyncApp::renderLoop()
 {
+    window().makeGLContextCurrent();
     while (!mShouldClose.load()) {
         draw();
         mWindow.swapBuffers();
     }
+}
+
+vgl::AsyncLambdaApp::AsyncLambdaApp(int x, int y, int width, int height, const std::string &title, std::function<void(double)> updateFunc)
+    : AsyncApp(x, y, width, height, title), mUpdateFunc(updateFunc)
+{
+}
+
+void vgl::AsyncLambdaApp::update(double deltaTime)
+{
+    mUpdateFunc(deltaTime);
 }

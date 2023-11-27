@@ -235,7 +235,7 @@ int main()
     meshData->materials = {red, green, pink, yellow, orange, blue};
     meshData->matTriangleCount = {2, 2, 2, 2, 2, 2};
 
-    vgl::LambdaApp app(100, 100, 400, 400, "Example", [](double) {});
+    vgl::AsyncLambdaApp app(100, 100, 400, 400, "Example", [](double) {});
     
     auto &mesh = app.scene().addMesh(meshData);
     app.run();
