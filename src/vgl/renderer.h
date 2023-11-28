@@ -93,6 +93,7 @@ class Scene;
 
 class Mesh {
 public:
+    Mesh();
     Mesh(SharedMeshData data);
     Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;

@@ -227,6 +227,11 @@ GLuint vgl::Program::id() const
     return mID;
 }
 
+vgl::Mesh::Mesh()
+    : Mesh(nullptr)
+{
+}
+
 vgl::Mesh::Mesh(SharedMeshData data)
 {
     set(data);

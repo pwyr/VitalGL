@@ -5,6 +5,7 @@
 #include <vgl/renderer.h>
 #include <chrono>
 #include <vgl/app.h>
+#include <vgl/primitives.h>
 
 // TODO: remove file (for testing purposes only)
 
@@ -237,7 +238,9 @@ int main()
 
     vgl::LambdaApp app(100, 100, 400, 400, "Example");
     
-    auto &mesh = app.scene().addMesh(meshData);
+    // auto &mesh = app.scene().addMesh(meshData);
+    vgl::Cube cube({0.0f, 0.0f, 0.0f}, 1.0f, {0.0f, 1.0f, 0.0f});
+    auto &mesh = app.scene().addMesh(std::move(cube.mesh()));
 
     app.setUpdateFunc([&mesh](double deltaTime) {
         mesh.rotate(static_cast<float>(deltaTime) * 1.f, {0.5f, 1.0f, 0.0f});

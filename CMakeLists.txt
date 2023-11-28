@@ -29,6 +29,8 @@ set(VITALGL_SOURCES
     src/vgl/vgl.h
     src/vgl/app.h
     src/vgl/app.cpp
+    src/vgl/primitives.h
+    src/vgl/primitives.cpp
     src/vgl/window.h
     src/vgl/window.cpp
     src/vgl/renderer.h
