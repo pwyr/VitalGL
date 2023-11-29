@@ -137,6 +137,12 @@ namespace vgl::internal {
 #define PRINT_WARNING(msg, desc) std::cout  << "[WARNING] " << __FILE__ << " (" << __LINE__ << "):  " \
                                             << __func__ << " (" << msg << ")\n         " << desc << std::endl;
 
+#ifdef VGL_ASYNC_RENDERING
+#define LOCK_FOR_ASYNC_RENDERING(mtx) std::lock_guard<std::mutex> lock(mtx);
+#else
+#define LOCK_FOR_ASYNC_RENDERING(mtx)
+#endif
+
 vgl::Shader::Shader(GLenum shaderType, const std::string& code)
 {
     mID = glCreateShader(shaderType);
@@ -300,19 +306,21 @@ void vgl::internal::swap(Mesh& a, Mesh& b)
     std::swap(a.mDirty, b.mDirty);
     std::swap(a.mDraw, b.mDraw);
     std::swap(a.mVerticesVBO, b.mVerticesVBO);
+    std::swap(a.mNormalsVBO, b.mNormalsVBO);
     std::swap(a.mEBO, b.mEBO);
     std::swap(a.mVAO, b.mVAO);
+    std::swap(a.mModel, b.mModel);
+    std::swap(a.mScene, b.mScene);
 }
 
 void vgl::Mesh::set(SharedMeshData data)
 {  
-    mMutex.lock();
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     if (data != mData) {
         mData = data;
         mDirty = true;
         mDraw = false;
     }
-    mMutex.unlock();
 }
 
 void vgl::Mesh::translate(const vec3 &translation)
@@ -378,13 +386,12 @@ void vgl::Mesh::scale(const vec3 &scale)
 
 void vgl::Mesh::update()
 {
-    mMutex.lock();
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     if (mDirty) {
         destroyGLObjects();
         createGLObjects();
         mDirty = false;
     }
-    mMutex.unlock();
 }
 
 void vgl::Mesh::draw() const
@@ -416,37 +423,22 @@ void vgl::Mesh::draw() const
     if (!mDraw) {
         return;
     }
-    
-    internal::_programMap.at(mData->lightingModel).use();
-    GLuint program = internal::_programMap.at(mData->lightingModel).id();
-
-    mat4 model = mModel.load();
-    glUniformMatrix4fv(glGetUniformLocation(program, "uModel"), 1, GL_TRUE, &model[0][0]);
-
-    vec3 viewPos = mScene->camera().position();
-    glUniform3fv(glGetUniformLocation(program, "uViewPos"), 1, &viewPos[0]);
-    mat4 view = mScene->camera().viewMatrix();
-    glUniformMatrix4fv(glGetUniformLocation(program, "uView"), 1, GL_TRUE, &view[0][0]);
-
-    mat4 projection = mScene->camera().projectionMatrix();
-    glUniformMatrix4fv(glGetUniformLocation(program, "uProjection"), 1, GL_TRUE, &projection[0][0]);
-
-    glUniform3fv(glGetUniformLocation(program, "uLight.position"), 1, &mScene->lightPosition()[0]);
-    glUniform3fv(glGetUniformLocation(program, "uLight.ambient"), 1, &mScene->lightAmbientColor()[0]);
-    glUniform3fv(glGetUniformLocation(program, "uLight.diffuse"), 1, &mScene->lightDiffuseColor()[0]);
-    glUniform3fv(glGetUniformLocation(program, "uLight.specular"), 1, &mScene->lightSpecularColor()[0]);
 
     glBindVertexArray(mVAO);
-    size_t primitive = 0;
-    for (int i = 0; i < mData->materials.size(); ++i) {
-        glUniform3fv(glGetUniformLocation(program, "uMaterial.ambient"), 1, &mData->materials[i].ambientColor[0]);
-        glUniform3fv(glGetUniformLocation(program, "uMaterial.diffuse"), 1, &mData->materials[i].diffuseColor[0]);
-        glUniform3fv(glGetUniformLocation(program, "uMaterial.specular"), 1, &mData->materials[i].specularColor[0]);
-        glUniform1f(glGetUniformLocation(program, "uMaterial.shininess"), mData->materials[i].shininess);
-        glDrawElements(GL_TRIANGLES, mData->matTriangleCount[i] * 3, GL_UNSIGNED_INT, (void*)(primitive * sizeof(GLuint)));
-        primitive += mData->matTriangleCount[i] * 3;
-    }
+    GLsizei primitive = 0;
+    for (size_t i = 0; i < mData->materials.size(); ++i) {
+        const Material& material = mData->materials[i];
+        vgl::Program& program = internal::_programMap.at(material.lightingModel);
 
+        program.use();
+        setUniforms(program.id(), material);
+        
+        GLsizei vertexCount = mData->matTriangleCount[i] * 3;
+        void* offset = reinterpret_cast<void*>(primitive * sizeof(GLuint));
+        glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, offset);
+        primitive += vertexCount;
+
+    }
     glBindVertexArray(0);
 }
 
@@ -497,9 +489,9 @@ void vgl::Mesh::createGLObjects()
         return;
     }
 
-    if (mData->normals && mData->normalCount == mData->vertexCount) {
+    if (mData->normals && mData->vertexCount == mData->vertexCount) {
         glBindBuffer(GL_ARRAY_BUFFER, mNormalsVBO);
-        glBufferData(GL_ARRAY_BUFFER, mData->normalCount * sizeof(GLfloat), mData->normals, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, mData->vertexCount * sizeof(GLfloat), mData->normals, GL_STATIC_DRAW);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (void*)0);
         glEnableVertexAttribArray(1);
     } else {
@@ -517,7 +509,9 @@ void vgl::Mesh::createGLObjects()
     
     glBindVertexArray(0);
 
-    internal::_programMap.try_emplace(mData->lightingModel, mData->lightingModel);
+    for (const auto& mat : mData->materials) {
+        internal::_programMap.try_emplace(mat.lightingModel, mat.lightingModel);
+    }
 }
 
 void vgl::Mesh::destroyGLObjects()
@@ -530,6 +524,27 @@ void vgl::Mesh::destroyGLObjects()
     mEBO = 0;
 }
 
+void vgl::Mesh::setUniforms(GLuint program, const Material& mat) const
+{
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
+
+    glUniformMatrix4fv(glGetUniformLocation(program, "uModel"), 1, GL_TRUE, &mModel[0][0]);
+
+    glUniform3fv(glGetUniformLocation(program, "uViewPos"), 1, &mScene->camera().position()[0]);
+    glUniformMatrix4fv(glGetUniformLocation(program, "uView"), 1, GL_TRUE, &mScene->camera().viewMatrix()[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(program, "uProjection"), 1, GL_TRUE, &mScene->camera().projectionMatrix()[0][0]);
+
+    glUniform3fv(glGetUniformLocation(program, "uLight.position"), 1, &mScene->lightPosition()[0]);
+    glUniform3fv(glGetUniformLocation(program, "uLight.ambient"), 1, &mScene->lightAmbientColor()[0]);
+    glUniform3fv(glGetUniformLocation(program, "uLight.diffuse"), 1, &mScene->lightDiffuseColor()[0]);
+    glUniform3fv(glGetUniformLocation(program, "uLight.specular"), 1, &mScene->lightSpecularColor()[0]);
+
+    glUniform3fv(glGetUniformLocation(program, "uMaterial.ambient"), 1, &mat.ambientColor[0]);
+    glUniform3fv(glGetUniformLocation(program, "uMaterial.diffuse"), 1, &mat.diffuseColor[0]);
+    glUniform3fv(glGetUniformLocation(program, "uMaterial.specular"), 1, &mat.specularColor[0]);
+    glUniform1f(glGetUniformLocation(program, "uMaterial.shininess"), mat.shininess);
+}
+
 vgl::Camera::Camera()
 {
     updateViewMatrix();
@@ -538,32 +553,32 @@ vgl::Camera::Camera()
 
 vgl::vec3 vgl::Camera::position() const
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     return mPosition;
 }
 
 vgl::mat4 vgl::Camera::viewMatrix() const
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     return mViewMatrix;
 }
 
 vgl::mat4 vgl::Camera::projectionMatrix() const
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     return mProjectionMatrix;
 }
 
 void vgl::Camera::setPosition(const vec3 &position)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     mPosition = position;
     updateViewMatrix();
 }
 
 void vgl::Camera::translate(const vec3 &translation)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     mPosition[0] += translation[0];
     mPosition[1] += translation[1];
     mPosition[2] += translation[2];
@@ -579,7 +594,7 @@ void vgl::Camera::setDirection(const vec3 &dir, const vec3 &up)
     vec3 r = normalize(cross(dir, up));
     vec3 u = cross(r, d);
 
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     mRotationMatrix = mat3{
         r[0], r[1], r[2],
         u[0], u[1], u[2],
@@ -607,7 +622,7 @@ void vgl::Camera::rotate(GLfloat angle, const vec3 &axis)
         2 * (xy + zw), 1 - 2 * (xx + zz), 2 * (yz - xw),
         2 * (xz - yw), 2 * (yz + xw), 1 - 2 * (xx + yy)};
 
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     mRotationMatrix = rotationMatrix * mRotationMatrix;
     updateViewMatrix();
 }
@@ -616,35 +631,35 @@ void vgl::Camera::rotate(mat3 rotationMatrix)
 {
     using internal::operator*;
 
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     mRotationMatrix = rotationMatrix * mRotationMatrix;
     updateViewMatrix();
 }
 
 void vgl::Camera::setNearPlane(GLfloat near)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     mNear = near;
     updateProjectionMatrix();
 }
 
 void vgl::Camera::setFarPlane(GLfloat far)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     mFar = far;
     updateProjectionMatrix();
 }
 
 void vgl::Camera::setFov(GLfloat fov)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     mFov = fov;
     updateProjectionMatrix();
 }
 
 void vgl::Camera::setAspectRatio(GLfloat aspectRatio)
 {
-    std::lock_guard<std::mutex> lock(mMutex);
+    LOCK_FOR_ASYNC_RENDERING(mMutex)
     mAspectRatio = aspectRatio;
     updateProjectionMatrix();
 }
@@ -682,7 +697,7 @@ void vgl::Camera::updateProjectionMatrix()
     mProjectionMatrix = projectionMatrix;
 }
 
-vgl::Mesh& vgl::Scene::addMesh(Mesh &&mesh)
+vgl::Mesh& vgl::Scene::addMesh(Mesh&& mesh)
 {
     mMeshes.emplace_back(std::move(mesh));
     mMeshes.back().setScene(this);

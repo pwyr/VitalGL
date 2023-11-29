@@ -35,6 +35,13 @@ vgl::Window &vgl::App::window()
 [[noreturn]] void vgl::App::run()
 {
     using time_point = std::chrono::high_resolution_clock::time_point;
+
+    // print fps each second
+    #ifdef VGL_PRINT_FPS
+    double timePassed = 0.;
+    time_point frameStart;
+    size_t frames = 0;
+    #endif
     
     time_point lastTime, currentTime;
     size_t maxFrameSkip = 5;
@@ -44,6 +51,9 @@ vgl::Window &vgl::App::window()
     lastTime = std::chrono::high_resolution_clock::now();
     while (!mWindow.shouldClose())
     {
+        #ifdef VGL_PRINT_FPS
+        frameStart = std::chrono::high_resolution_clock::now();
+        #endif
         mWindow.pollEvents();
 
         currentTime = std::chrono::high_resolution_clock::now();
@@ -64,6 +74,16 @@ vgl::Window &vgl::App::window()
         skippedFrames = 0;
 
         mWindow.swapBuffers();
+
+        #ifdef VGL_PRINT_FPS
+        ++frames;
+        timePassed += std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - frameStart).count();
+        if (timePassed >= 1.0) {
+            std::cout << "FPS: " << frames << std::endl;
+            timePassed = 0.;
+            frames = 0;
+        }
+        #endif
     }
 }
 

@@ -199,52 +199,64 @@ int main()
     red.diffuseColor = {0.6f, 0.0f, 0.0f};
     red.specularColor = {0.8f, 0.6f, 0.6f};
     red.shininess = 32.0f;
+    red.lightingModel = vgl::LightingModel::BlinnPhong;
 
     green.ambientColor = {0.0f, 0.3f, 0.0f};
     green.diffuseColor = {0.0f, 0.6f, 0.0f};
     green.specularColor = {0.6f, 0.8f, 0.6f};
     green.shininess = 32.0f;
+    green.lightingModel = vgl::LightingModel::Phong;
 
     blue.ambientColor = {0.0f, 0.0f, 0.3f};
     blue.diffuseColor = {0.0f, 0.0f, 0.6f};
     blue.specularColor = {0.6f, 0.6f, 0.8f};
     blue.shininess = 4.0f;
+    blue.lightingModel = vgl::LightingModel::BlinnPhong;
 
     yellow.ambientColor = {0.3f, 0.3f, 0.0f};
     yellow.diffuseColor = {0.6f, 0.6f, 0.0f};
     yellow.specularColor = {0.8f, 0.8f, 0.6f};
     yellow.shininess = 32.0f;
+    yellow.lightingModel = vgl::LightingModel::BlinnPhong;
 
     orange.ambientColor = {0.2f, 0.06f, 0.0f};
     orange.diffuseColor = {0.6f, 0.3f, 0.0f};
     orange.specularColor = {0.8f, 0.6f, 0.6f};
     orange.shininess = 32.0f;
+    orange.lightingModel = vgl::LightingModel::BlinnPhong;
 
     pink.ambientColor = {0.3f, 0.0f, 0.06f};
     pink.diffuseColor = {0.6f, 0.0f, 0.3f};
     pink.specularColor = {0.8f, 0.6f, 0.8f};
     pink.shininess = 32.0f;
+    pink.lightingModel = vgl::LightingModel::BlinnPhong;
 
     vgl::SharedMeshData meshData = std::make_shared<vgl::MeshData>();
     meshData->vertices = vertices;
-    meshData->vertexCount = 36*3;
+    meshData->vertexCount = 36 * 3;
     meshData->normals = normals;
-    meshData->normalCount = 36*3;
     meshData->indices = indices;
     meshData->indexCount = 36;
-    meshData->lightingModel = vgl::LightingModel::BlinnPhong;
     meshData->materials = {red, green, pink, yellow, orange, blue};
     meshData->matTriangleCount = {2, 2, 2, 2, 2, 2};
 
     vgl::LambdaApp app(100, 100, 400, 400, "Example");
-    
-    // auto &mesh = app.scene().addMesh(meshData);
-    vgl::Cube cube({0.0f, 0.0f, 0.0f}, 1.0f, {0.0f, 1.0f, 0.0f});
-    auto &mesh = app.scene().addMesh(std::move(cube.mesh()));
 
-    app.setUpdateFunc([&mesh](double deltaTime) {
-        mesh.rotate(static_cast<float>(deltaTime) * 1.f, {0.5f, 1.0f, 0.0f});
-    });
+    // auto &mesh = app.scene().addMesh(meshData);
+    // app.scene().addMesh(meshData);
+    // app.setUpdateFunc([&mesh](double deltaTime)
+    //                 { mesh.rotate(static_cast<float>(deltaTime) * 1.f, {0.5f, 1.0f, 0.0f}); });
+    for (int i = 0; i < 3000; ++i) {
+        float x = 10 * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) - 5;
+        float y = 10 * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) - 5;
+        float z = 10 * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) - 5;
+        float s = 0.1f * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) + 0.01f;
+        vgl::Cube cube({x, y, z}, s, {0.0f, 1.0f, 0.0f});
+        auto &mesh = app.scene().addMesh(std::move(cube.mesh()));
+    }
+    auto& c = app.scene().camera();
+    app.setUpdateFunc([&c](double deltaTime)
+                    { c.translate({(float) deltaTime * 0.01f, 0.0f, 0.00f}); });
 
     app.run();
 
@@ -273,7 +285,6 @@ int main()
     //     glViewport(0, 0, w.width(), w.height());
     //     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     //     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
 
     //     scene.camera().setAspectRatio(static_cast<float>(w.aspectRatio()));
     //     mesh.rotate(0.01f, {0.5f, 1.0f, 0.0f});

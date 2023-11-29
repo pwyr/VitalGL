@@ -22,6 +22,17 @@ set(OPENGL_DEBUG_MODE OFF CACHE BOOL "Enable OpenGL debug mode")
 if(${OPENGL_DEBUG_MODE})
     add_compile_definitions(VGL_OPENGL_DEBUG_MODE=1)
 endif()
+
+set(ASYNC_RENDERING OFF CACHE BOOL "Enable async rendering")
+if(${ASYNC_RENDERING})
+    add_compile_definitions(VGL_ASYNC_RENDERING=1)
+endif()
+
+set(PRINT_FPS OFF CACHE BOOL "Print FPS in console")
+if(${PRINT_FPS})
+    add_compile_definitions(VGL_PRINT_FPS=1)
+endif()
+
 #TODO: remove
 add_compile_definitions(VGL_OPENGL_DEBUG_MODE=1)
 

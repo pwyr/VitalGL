@@ -90,20 +90,20 @@ vgl::Cube::Cube(vec3 position, float scale, vec3 color)
     mat.diffuseColor = color;
     mat.specularColor = color;
     mat.shininess = 32.0f;
-
+    mat.lightingModel = LightingModel::BlinnPhong;
 
     SharedMeshData meshData = std::make_shared<MeshData>();
     meshData->vertices = mVertices.data();
-    meshData->vertexCount = mVertices.size();
+    meshData->vertexCount = static_cast<GLsizei>(mVertices.size());
     meshData->normals = mNormals.data();
-    meshData->normalCount = mNormals.size();
     meshData->indices = mIndices.data();
-    meshData->indexCount = mIndices.size();
+    meshData->indexCount = static_cast<GLsizei>(mIndices.size());
     meshData->materials.push_back(mat);
     meshData->matTriangleCount.push_back(12);
-    meshData->lightingModel = LightingModel::BlinnPhong;
 
     mMesh.set(meshData);
+    mMesh.translate(position);
+    mMesh.scale(scale);
 }
 
 vgl::Mesh &vgl::Cube::mesh()

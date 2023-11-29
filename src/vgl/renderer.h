@@ -53,6 +53,8 @@ struct Material {
     vec3 diffuseColor{0.0f, 0.0f, 0.0f};
     vec3 specularColor{0.0f, 0.0f, 0.0f};
     GLfloat shininess = 0.0f;
+
+    LightingModel lightingModel = LightingModel::None;
 };
 
 struct MeshData {
@@ -60,18 +62,14 @@ struct MeshData {
     GLsizei vertexCount = 0;
 
     const GLfloat* normals = nullptr;
-    GLsizei normalCount = 0;
 
     // const float* texCoords = nullptr;
-    // size_t texCoordCount = 0;
 
     const GLuint* indices = nullptr;
     GLsizei indexCount = 0;
 
     std::vector<Material> materials{};
-    std::vector<GLuint> matTriangleCount{};
-
-    LightingModel lightingModel = LightingModel::None;
+    std::vector<GLsizei> matTriangleCount{};
 };
 
 using SharedMeshData = std::shared_ptr<MeshData>;
@@ -122,6 +120,8 @@ private:
     void createGLObjects();
     void destroyGLObjects();
 
+    void setUniforms(GLuint program, const Material& mat) const;
+
 private:
     SharedMeshData mData = nullptr;
     bool mDirty = false;
@@ -129,14 +129,17 @@ private:
 
     GLuint mVerticesVBO = 0, mNormalsVBO = 0, mEBO = 0, mVAO = 0;
 
-    mutable std::mutex mMutex;
-    std::atomic<mat4> mModel = mat4{
+    mat4 mModel = mat4{
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f};
 
     Scene* mScene = nullptr;
+
+    #ifdef VGL_ASYNC_RENDERING
+    mutable std::mutex mMutex;
+    #endif
 };
 
 class Camera {
@@ -181,10 +184,11 @@ private:
     mat4 mViewMatrix{};
     mat4 mProjectionMatrix{};
 
+    #ifdef VGL_ASYNC_RENDERING
     mutable std::mutex mMutex;
+    #endif
 };
 
-// TODO: mutex
 class Scene {
 public:
     Scene() = default;
@@ -205,7 +209,7 @@ public:
     // rendering thread only
     void update();
     void draw() const;
-private:
+public:
     std::vector<Mesh> mMeshes{};
 
     Camera mCamera{};
@@ -213,6 +217,10 @@ private:
     vec3 mLightAmbientColor{0.3f, 0.3f, 0.3f};
     vec3 mLightDiffuseColor{0.8f, 0.8f, 0.8f};
     vec3 mLightSpecularColor{1.0f, 1.0f, 1.0f};
+
+    #ifdef VGL_ASYNC_RENDERING
+    mutable std::mutex mMutex;
+    #endif
 };
 
 } // namespace vgl
