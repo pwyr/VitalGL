@@ -102,8 +102,8 @@ vgl::Cube::Cube(vec3 position, float scale, vec3 color)
     meshData->matTriangleCount.push_back(12);
 
     mMesh.set(meshData);
-    mMesh.translate(position);
     mMesh.scale(scale);
+    mMesh.translate(position);
 }
 
 vgl::Mesh &vgl::Cube::mesh()

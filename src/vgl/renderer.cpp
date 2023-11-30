@@ -143,6 +143,10 @@ namespace vgl::internal {
 #define LOCK_FOR_ASYNC_RENDERING(mtx)
 #endif
 
+// ===============================================================================================================
+// Shader
+// ===============================================================================================================
+
 vgl::Shader::Shader(GLenum shaderType, const std::string& code)
 {
     mID = glCreateShader(shaderType);
@@ -173,6 +177,11 @@ GLuint vgl::Shader::id() const
 {
     return mID;
 }
+
+// ===============================================================================================================
+// Program
+// ===============================================================================================================
+
 vgl::Program::Program(LightingModel model)
 {
     mID = glCreateProgram();
@@ -233,6 +242,10 @@ GLuint vgl::Program::id() const
     return mID;
 }
 
+// ===============================================================================================================
+// Mesh
+// ===============================================================================================================
+
 vgl::Mesh::Mesh()
     : Mesh(nullptr)
 {
@@ -243,15 +256,19 @@ vgl::Mesh::Mesh(SharedMeshData data)
     set(data);
 }
 
-vgl::Mesh::Mesh(Mesh&& mesh)
+vgl::vec3 vgl::internal::operator+(const vec3 &a, const vec3 &b)
 {
-    internal::swap(*this, mesh);
+    return vec3{a[0] + b[0], a[1] + b[1], a[2] + b[2]};
 }
 
-vgl::Mesh& vgl::Mesh::operator=(Mesh&& mesh)
+vgl::vec3 vgl::internal::operator-(const vec3 &a, const vec3 &b)
 {
-    internal::swap(*this, mesh);
-    return *this;
+    return vec3{a[0] - b[0], a[1] - b[1], a[2] - b[2]};
+}
+
+vgl::vec3 vgl::internal::operator*(GLfloat a, const vec3 &b)
+{
+    return vec3{a * b[0], a * b[1], a * b[2]};
 }
 
 vgl::vec3 vgl::internal::operator*(const mat3 &a, const vec3 &b)
@@ -300,19 +317,6 @@ vgl::vec3 vgl::internal::normalize(const vec3 &v)
     return vec3{v[0] / length, v[1] / length, v[2] / length};
 }
 
-void vgl::internal::swap(Mesh& a, Mesh& b)
-{
-    std::swap(a.mData, b.mData);
-    std::swap(a.mDirty, b.mDirty);
-    std::swap(a.mDraw, b.mDraw);
-    std::swap(a.mVerticesVBO, b.mVerticesVBO);
-    std::swap(a.mNormalsVBO, b.mNormalsVBO);
-    std::swap(a.mEBO, b.mEBO);
-    std::swap(a.mVAO, b.mVAO);
-    std::swap(a.mModel, b.mModel);
-    std::swap(a.mScene, b.mScene);
-}
-
 void vgl::Mesh::set(SharedMeshData data)
 {  
     LOCK_FOR_ASYNC_RENDERING(mMutex)
@@ -325,14 +329,10 @@ void vgl::Mesh::set(SharedMeshData data)
 
 void vgl::Mesh::translate(const vec3 &translation)
 {
-    using internal::operator*;
+    using internal::operator+;
 
-    mat4 translationMatrix = mat4{
-        1.0f, 0.0f, 0.0f, translation[0],
-        0.0f, 1.0f, 0.0f, translation[1],
-        0.0f, 0.0f, 1.0f, translation[2],
-        0.0f, 0.0f, 0.0f, 1.0f};
-    mModel = translationMatrix * mModel;
+    mPosition = mPosition + translation;
+    mModelMatrixDirty = true;
 }
 
 void vgl::Mesh::rotate(GLfloat angle, const vec3 &axis)
@@ -349,44 +349,36 @@ void vgl::Mesh::rotate(GLfloat angle, const vec3 &axis)
     GLfloat yy = y * y, yz = y * z, yw = y * w;
     GLfloat zz = z * z, zw = z * w;
 
-    mat4 rotationMatrix = mat4{
-        1 - 2 * (yy + zz), 2 * (xy - zw), 2 * (xz + yw), 0.0f,
-        2 * (xy + zw), 1 - 2 * (xx + zz), 2 * (yz - xw), 0.0f,
-        2 * (xz - yw), 2 * (yz + xw), 1 - 2 * (xx + yy), 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f};
+    mRotationMatrix = mat3{
+        1 - 2 * (yy + zz), 2 * (xy - zw), 2 * (xz + yw),
+        2 * (xy + zw), 1 - 2 * (xx + zz), 2 * (yz - xw),
+        2 * (xz - yw), 2 * (yz + xw), 1 - 2 * (xx + yy)};
 
-    mModel = rotationMatrix * mModel;
+    mModelMatrixDirty = true;
 }
 
 void vgl::Mesh::scale(GLfloat scale)
 {
     using internal::operator*;
 
-    mat4 scaleMatrix = mat4{
-        scale, 0.0f, 0.0f, 0.0f,
-        0.0f, scale, 0.0f, 0.0f,
-        0.0f, 0.0f, scale, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f};
-    
-    mModel = scaleMatrix * mModel;
+    mScale = scale * mScale;
+    mModelMatrixDirty = true;
 }
 
 void vgl::Mesh::scale(const vec3 &scale)
 {
     using internal::operator*;
 
-    mat4 scaleMatrix = mat4{
-        scale[0], 0.0f, 0.0f, 0.0f,
-        0.0f, scale[1], 0.0f, 0.0f,
-        0.0f, 0.0f, scale[2], 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f};
-    
-    mModel = scaleMatrix * mModel;
+    mScale = vec3{scale[0] * mScale[0], scale[1] * mScale[1], scale[2] * mScale[2]};
+    mModelMatrixDirty = true;
 }
 
 void vgl::Mesh::update()
 {
     LOCK_FOR_ASYNC_RENDERING(mMutex)
+    if (mModelMatrixDirty) {
+        updateModelMatrix();
+    }
     if (mDirty) {
         destroyGLObjects();
         createGLObjects();
@@ -545,6 +537,34 @@ void vgl::Mesh::setUniforms(GLuint program, const Material& mat) const
     glUniform1f(glGetUniformLocation(program, "uMaterial.shininess"), mat.shininess);
 }
 
+void vgl::Mesh::updateModelMatrix()
+{
+    using internal::operator*;
+
+    mat4 translationMatrix = mat4{
+        1.0f, 0.0f, 0.0f, mPosition[0],
+        0.0f, 1.0f, 0.0f, mPosition[1],
+        0.0f, 0.0f, 1.0f, mPosition[2],
+        0.0f, 0.0f, 0.0f, 1.0f};
+    mat4 rotationMatrix = mat4{
+        mRotationMatrix[0][0], mRotationMatrix[0][1], mRotationMatrix[0][2], 0.0f,
+        mRotationMatrix[1][0], mRotationMatrix[1][1], mRotationMatrix[1][2], 0.0f,
+        mRotationMatrix[2][0], mRotationMatrix[2][1], mRotationMatrix[2][2], 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+    mat4 scaleMatrix = mat4{
+        mScale[0], 0.0f, 0.0f, 0.0f,
+        0.0f, mScale[1], 0.0f, 0.0f,
+        0.0f, 0.0f, mScale[2], 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f};
+    
+    mModel = translationMatrix * rotationMatrix * scaleMatrix;
+    mModelMatrixDirty = false;
+}
+
+// ===============================================================================================================
+// Scene
+// ===============================================================================================================
+
 vgl::Camera::Camera()
 {
     updateViewMatrix();
@@ -594,13 +614,25 @@ void vgl::Camera::setDirection(const vec3 &dir, const vec3 &up)
     vec3 r = normalize(cross(dir, up));
     vec3 u = cross(r, d);
 
+    // std::cout << d[0] << ", " << d[1] << ", " << d[2] << std::endl;
+    // std::cout << r[0] << ", " << r[1] << ", " << r[2] << std::endl;
+    // std::cout << u[0] << ", " << u[1] << ", " << u[2] << std::endl;
+
     LOCK_FOR_ASYNC_RENDERING(mMutex)
     mRotationMatrix = mat3{
-        r[0], r[1], r[2],
-        u[0], u[1], u[2],
-        d[0], d[1], d[2]};
+        r[0], u[0], d[0],
+        r[1], u[1], d[1],
+        r[2], u[2], d[2]
+    };
 
     updateViewMatrix();
+}
+
+void vgl::Camera::lookAt(const vec3 &target, const vec3 &up)
+{
+    using internal::operator-;
+
+    setDirection(target - mPosition, up);
 }
 
 void vgl::Camera::rotate(GLfloat angle, const vec3 &axis)
@@ -679,7 +711,8 @@ void vgl::Camera::updateViewMatrix()
         mRotationMatrix[2][0], mRotationMatrix[2][1], mRotationMatrix[2][2], 0.0f,
         0.0f, 0.0f, 0.0f, 1.0f};
     
-    mViewMatrix = rotationMatrix * translationMatrix;
+    // TODO: fix this
+    mViewMatrix = translationMatrix * rotationMatrix;
 }
 
 void vgl::Camera::updateProjectionMatrix()
@@ -697,9 +730,13 @@ void vgl::Camera::updateProjectionMatrix()
     mProjectionMatrix = projectionMatrix;
 }
 
-vgl::Mesh& vgl::Scene::addMesh(Mesh&& mesh)
+// ===============================================================================================================
+// Scene
+// ===============================================================================================================
+
+vgl::Mesh& vgl::Scene::addMesh(Mesh mesh)
 {
-    mMeshes.emplace_back(std::move(mesh));
+    mMeshes.push_back(std::move(mesh));
     mMeshes.back().setScene(this);
     return mMeshes.back();
 }

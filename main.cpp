@@ -246,17 +246,26 @@ int main()
     // app.scene().addMesh(meshData);
     // app.setUpdateFunc([&mesh](double deltaTime)
     //                 { mesh.rotate(static_cast<float>(deltaTime) * 1.f, {0.5f, 1.0f, 0.0f}); });
-    for (int i = 0; i < 3000; ++i) {
-        float x = 10 * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) - 5;
-        float y = 10 * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) - 5;
-        float z = 10 * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) - 5;
-        float s = 0.1f * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) + 0.01f;
-        vgl::Cube cube({x, y, z}, s, {0.0f, 1.0f, 0.0f});
-        auto &mesh = app.scene().addMesh(std::move(cube.mesh()));
-    }
+    // for (int i = 0; i < 300; ++i) {
+    //     float x = 10 * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) - 5;
+    //     float y = 10 * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) - 5;
+    //     float z = 10 * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) - 5;
+    //     float s = 0.1f * static_cast<float> (rand()) / static_cast<float> (RAND_MAX) + 0.01f;
+    //     vgl::Cube cube({x, y, z}, s, {0.0f, 1.0f, 0.0f});
+    //     auto &mesh = app.scene().addMesh(cube.mesh());
+    // }
+    vgl::Cube cube({0.0f, 0.0f, 0.0f}, 1.0f, {0.3f, 0.7f, 0.0f});
+    app.scene().addMesh(cube.mesh());
+
     auto& c = app.scene().camera();
-    app.setUpdateFunc([&c](double deltaTime)
-                    { c.translate({(float) deltaTime * 0.01f, 0.0f, 0.00f}); });
+    float t = 0;
+    app.setUpdateFunc([&c, &t](double deltaTime)
+                    {   
+                        t += deltaTime;
+                        c.setPosition({4.0f * std::cos(t), 0.0f, 4.0f * std::sin(t)});
+                        // c.setPosition({0.0f, 0.0f, 3.0f});
+                        c.lookAt({0.0f, 0.0f, 0.0f});
+                    });
 
     app.run();
 

@@ -11,6 +11,9 @@
 
 namespace vgl {
 
+// ===============================================================================================================
+// Shader
+// ===============================================================================================================
 class Shader {
 public:
     Shader(GLenum shaderType, const std::string& code);
@@ -29,6 +32,9 @@ enum class LightingModel {
     CookTorrance,
 };
 
+// ===============================================================================================================
+// Program
+// ===============================================================================================================
 class Program {
 public:
     Program(LightingModel model);
@@ -48,6 +54,9 @@ using vec3 = std::array<GLfloat, 3>;
 using mat3 = std::array<std::array<GLfloat, 3>, 3>;
 using mat4 = std::array<std::array<GLfloat, 4>, 4>;
 
+// ===============================================================================================================
+// Mesh
+// ===============================================================================================================
 struct Material {
     vec3 ambientColor{0.0f, 0.0f, 0.0f};
     vec3 diffuseColor{0.0f, 0.0f, 0.0f};
@@ -59,9 +68,8 @@ struct Material {
 
 struct MeshData {
     const GLfloat* vertices = nullptr;
-    GLsizei vertexCount = 0;
-
     const GLfloat* normals = nullptr;
+    GLsizei vertexCount = 0;
 
     // const float* texCoords = nullptr;
 
@@ -77,8 +85,9 @@ using SharedMeshData = std::shared_ptr<MeshData>;
 
 class Mesh;
 namespace internal{
-    void swap(Mesh& a, Mesh& b);
-
+    vec3 operator+(const vec3& a, const vec3& b);
+    vec3 operator-(const vec3& a, const vec3& b);
+    vec3 operator*(GLfloat a, const vec3& b);
     vec3 operator*(const mat3& a, const vec3& b);
     mat3 operator*(const mat3& a, const mat3& b);
     mat4 operator*(const mat4& a, const mat4& b);
@@ -93,11 +102,8 @@ class Mesh {
 public:
     Mesh();
     Mesh(SharedMeshData data);
-    Mesh(const Mesh&) = delete;
-    Mesh& operator=(const Mesh&) = delete;
-    Mesh(Mesh&&);
-    Mesh& operator=(Mesh&&);
-    friend void internal::swap(Mesh& a, Mesh& b);
+    Mesh(const Mesh&) = default;
+    Mesh& operator=(const Mesh&) = default;
 
     // arbitrary thread
     void set(SharedMeshData data);
@@ -122,6 +128,8 @@ private:
 
     void setUniforms(GLuint program, const Material& mat) const;
 
+    void updateModelMatrix();
+
 private:
     SharedMeshData mData = nullptr;
     bool mDirty = false;
@@ -129,11 +137,15 @@ private:
 
     GLuint mVerticesVBO = 0, mNormalsVBO = 0, mEBO = 0, mVAO = 0;
 
-    mat4 mModel = mat4{
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f};
+    vec3 mPosition{0.0f, 0.0f, 0.0f};
+    vec3 mScale{1.0f, 1.0f, 1.0f};
+    mat3 mRotationMatrix = mat3{
+        1.0f, 0.0f, 0.0f,
+        0.0f, 1.0, 0.0f,
+        0.0f, 0.0f, 1.0f};
+
+    mat4 mModel;
+    bool mModelMatrixDirty = true;
 
     Scene* mScene = nullptr;
 
@@ -142,6 +154,9 @@ private:
     #endif
 };
 
+// ===============================================================================================================
+// Camera
+// ===============================================================================================================
 class Camera {
 public:
     Camera();
@@ -154,6 +169,7 @@ public:
     void translate(const vec3& translation);
 
     void setDirection(const vec3& dir, const vec3& up);
+    void lookAt(const vec3& target, const vec3& up = {0.0f, 1.0f, 0.0f});
     void rotate(GLfloat angle, const vec3& axis);
     void rotate(mat3 rotationMatrix);
 
@@ -189,13 +205,16 @@ private:
     #endif
 };
 
+// ===============================================================================================================
+// Scene
+// ===============================================================================================================
 class Scene {
 public:
     Scene() = default;
     Scene(const Scene&) = delete;
     Scene& operator=(const Scene&) = delete;
 
-    Mesh& addMesh(Mesh&& mesh);
+    Mesh& addMesh(Mesh mesh);
     Mesh& addMesh(SharedMeshData data);
 
     Camera& camera();
